@@ -270,103 +270,77 @@ export async function POST(req: Request) {
       .filter(f => f.type === 'error')
       .map(f => f.content);
     
-    // If we have a lot of text content, process it in chunks
-    if (textContent.length > 50000) {
-      const chunks = chunkContent(textContent, 30000);
-      
-      // Process the first chunk only to avoid timeout
-      const firstChunk = chunks[0];
-      const remainingInfo = chunks.length > 1 ? 
-        `\n\n[Note: This is chunk 1 of ${chunks.length}. Additional content truncated due to size limits.]` : '';
-      
-      const content = [
-        {
-          type: "text",
-          text: `Please extract and organize all the text content from these documents. Maintain the structure and context of the information for educational purposes.
-          
-Pre-extracted text from PowerPoint files:\n${firstChunk}${remainingInfo}\n\n
-${errorMessages.length > 0 ? `Errors encountered:\n${errorMessages.join('\n')}\n\n` : ''}
-${geminiFiles.length > 0 ? `Please also process the following PDF files:` : ''}`,
-        },
-        // Add PDF files for Gemini to process (limit to 2 files max)
-        ...geminiFiles.slice(0, 2).map(file => ({
-          type: "file",
-          data: file.data,
-          mimeType: file.mimeType,
-        })),
-      ];
-      
-      const result = await generateText({
-        model: google("gemini-2.5-flash"),
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a text extraction assistant. Extract all meaningful text content from the provided documents while maintaining structure, context, and readability. Organize the content clearly with proper headings and sections. If multiple documents are provided, clearly separate content from each document with appropriate headers. Some text may have already been pre-extracted from PowerPoint files - integrate this with any PDF content you process.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify(content),
-          },
-        ],
-      });
-      
-      return new Response(JSON.stringify({ 
-        extractedText: result.text,
-        success: true,
-        processedFiles: processedFiles.length,
-        errors: errorMessages,
-        chunked: chunks.length > 1,
-        totalChunks: chunks.length,
-        warning: chunks.length > 1 ? 'Large content was chunked. Some content may be truncated.' : null
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    } else {
-      // Process normally if content is not too large
-      const content = [
-        {
-          type: "text",
-          text: `Please extract and organize all the text content from these documents. Maintain the structure and context of the information for educational purposes.
-          
-${textContent ? `Pre-extracted text from PowerPoint files:\n${textContent}\n\n` : ''}
-${errorMessages.length > 0 ? `Errors encountered:\n${errorMessages.join('\n')}\n\n` : ''}
-${geminiFiles.length > 0 ? `Please also process the following PDF files:` : ''}`,
-        },
-        // Add PDF files for Gemini to process
-        ...geminiFiles.map(file => ({
-          type: "file",
-          data: file.data,
-          mimeType: file.mimeType,
-        })),
-      ];
-
-      const result = await generateText({
-        model: google("gemini-2.5-flash"),
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a text extraction assistant. Extract all meaningful text content from the provided documents while maintaining structure, context, and readability. Organize the content clearly with proper headings and sections. If multiple documents are provided, clearly separate content from each document with appropriate headers. Some text may have already been pre-extracted from PowerPoint files - integrate this with any PDF content you process.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify(content),
-          },
-        ],
-      });
-
-      return new Response(JSON.stringify({ 
-        extractedText: result.text,
-        success: true,
-        processedFiles: processedFiles.length,
-        errors: errorMessages
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+    // Combine all extracted text
+    let finalExtractedText = '';
+    
+    // Add PowerPoint text directly (no AI processing needed)
+    if (textContent) {
+      finalExtractedText += textContent + '\n\n';
     }
+    
+    // Only use Gemini for PDF processing if there are PDF files
+    if (geminiFiles.length > 0) {
+      // Limit PDF processing to avoid long processing times
+      const maxPdfsToProcess = 2;
+      const pdfsToProcess = geminiFiles.slice(0, maxPdfsToProcess);
+      
+      if (geminiFiles.length > maxPdfsToProcess) {
+        errorMessages.push(`Only processing first ${maxPdfsToProcess} PDF files out of ${geminiFiles.length} provided`);
+      }
+      
+      try {
+        const pdfContent = [
+          {
+            type: "text",
+            text: `Extract text from these PDF files. Be concise and maintain structure:`,
+          },
+          ...pdfsToProcess.map(file => ({
+            type: "file",
+            data: file.data,
+            mimeType: file.mimeType,
+          })),
+        ];
+
+        const pdfResult = await Promise.race([
+          generateText({
+            model: google("gemini-2.5-flash"),
+            messages: [
+              {
+                role: "system",
+                content: "Extract text from PDF files. Keep output concise and well-structured. Don't add extra formatting or commentary.",
+              },
+              {
+                role: "user",
+                content: JSON.stringify(pdfContent),
+              },
+            ],
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('PDF processing timeout')), 60000) // 1 minute timeout
+          )
+        ]);
+
+        if (pdfResult && typeof pdfResult === 'object' && 'text' in pdfResult) {
+          finalExtractedText += '\n=== PDF Content ===\n' + pdfResult.text;
+        }
+      } catch (error) {
+        console.error('PDF processing error:', error);
+        errorMessages.push(`Failed to process PDF files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+    
+    // Return the combined extracted text
+    return new Response(JSON.stringify({ 
+      extractedText: finalExtractedText || 'No text content extracted',
+      success: true,
+      processedFiles: processedFiles.length,
+      errors: errorMessages,
+      pdfProcessed: geminiFiles.length > 0,
+      fastMode: true // Indicates we used fast processing
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Text extraction API error:", error);
     

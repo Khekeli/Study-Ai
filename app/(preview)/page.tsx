@@ -593,7 +593,7 @@ export default function ChatWithFiles() {
               transition={{ duration: 0.6, delay: 0.3 }}
             >
               <CardTitle className="text-2xl font-bold py-5 ">
-                <span className="text-pink-500">Everyone&apos;s </span> <span className="text-2xl px-2"> Ai </span>
+                <span className="text-pink-500">Maampee&apos;s </span> <span className="text-2xl px-2"> Ai </span>
               </CardTitle>
               <CardDescription className="text-base">
                 This is Maampee&apos;s own ai studymate!
