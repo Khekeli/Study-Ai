@@ -15,13 +15,13 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = streamObject({
+    const result = await streamObject({
       model: google("gemini-2.5-flash"),
       messages: [
         {
           role: "system",
           content:
-            "You are a teacher creating comprehensive multiple choice questions. Create 45 detailed MCQ questions that test deep understanding, application, and analysis of the content. ",
+            "You are a teacher creating comprehensive multiple choice questions. Create 45 detailed MCQ questions that test deep understanding, application, and analysis of the content. IMPORTANT REQUIREMENTS: 1) Questions must be organized sequentially according to the page order in the text - do NOT mix up questions from different pages 2) Each question should include the page number reference (e.g., 'Page 15: Which of the following...?' or specify page number in the question/answer) 3) Follow the natural flow and sequence of the content as it appears in the text 4) Include questions that require critical thinking and application of concepts 5) Each option should be roughly equal in length and plausible 6) Generate very detailed answers that are broken down and easy to understand 7) The detailed explanations should include the page number reference 8) Each question must have exactly 4 options (A, B, C, D) and one correct answer 9) Maintain sequential organization from earliest to latest pages in the text.",
         },
         {
           role: "user",
@@ -34,23 +34,6 @@ export async function POST(req: Request) {
         },
       ],
       schema: questionsSchema,
-      onFinish: ({ object }) => {
-        console.log("MCQ generation finished, object:", object);
-        console.log("MCQ generation finished, object type:", typeof object);
-        console.log("MCQ generation finished, is array:", Array.isArray(object));
-        
-        // Only validate if object exists and is not undefined
-        if (object) {
-          const res = questionsSchema.safeParse(object);
-          if (res.error) {
-            console.error("MCQ validation error:", res.error.errors);
-            throw new Error(res.error.errors.map((e) => e.message).join("\n"));
-          }
-          console.log("MCQ validation successful, questions count:", Array.isArray(object) ? object.length : 'not an array');
-        } else {
-          console.log("MCQ generation finished but object is undefined");
-        }
-      },
     });
 
     return result.toTextStreamResponse();
