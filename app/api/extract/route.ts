@@ -151,7 +151,7 @@ export async function POST(req: Request) {
           processedFiles.push({
             name: file.name,
             type: 'error',
-            content: `Failed to extract text from ${file.name}: ${error.message}`
+            content: `Failed to extract text from ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
           });
         }
       } else if (fileType === 'pdf') {
@@ -210,7 +210,7 @@ ${geminiFiles.length > 0 ? `Please also process the following PDF files:` : ''}`
         },
         {
           role: "user",
-          content,
+          content: JSON.stringify(content),
         },
       ],
     });
@@ -229,7 +229,6 @@ ${geminiFiles.length > 0 ? `Please also process the following PDF files:` : ''}`
     return new Response(JSON.stringify({ 
       error: "Failed to extract text from documents",
       success: false,
-      details: error.message
     }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
