@@ -1,4 +1,4 @@
-import { questionsSchema } from "@/lib/schemas";
+import { questionSchema, questionsSchema } from "@/lib/schemas";
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = await streamObject({
+    const result = streamObject({
       model: google("gemini-2.5-flash"),
       messages: [
         {
@@ -33,7 +33,17 @@ export async function POST(req: Request) {
           ],
         },
       ],
-      schema: questionsSchema,
+      schema: questionSchema,
+      output: "array",
+      onFinish: ({ object }) => {
+        console.log("MCQ generation finished, object:", object);
+        const res = questionsSchema.safeParse(object);
+        if (res.error) {
+          console.error("MCQ validation error:", res.error.errors);
+          throw new Error(res.error.errors.map((e) => e.message).join("\n"));
+        }
+        console.log("MCQ validation successful");
+      },
     });
 
     return result.toTextStreamResponse();
