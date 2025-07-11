@@ -1,4 +1,4 @@
-import { questionSchema, questionsSchema } from "@/lib/schemas";
+import { questionsSchema } from "@/lib/schemas";
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 
@@ -33,8 +33,7 @@ export async function POST(req: Request) {
           ],
         },
       ],
-      schema: questionSchema,
-      output: "array",
+      schema: questionsSchema,
       onFinish: ({ object }) => {
         console.log("MCQ generation finished, object:", object);
         const res = questionsSchema.safeParse(object);
