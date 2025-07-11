@@ -34,15 +34,6 @@ export async function POST(req: Request) {
         },
       ],
       schema: questionsSchema,
-      onFinish: ({ object }) => {
-        console.log("MCQ generation finished, object:", object);
-        const res = questionsSchema.safeParse(object);
-        if (res.error) {
-          console.error("MCQ validation error:", res.error.errors);
-          throw new Error(res.error.errors.map((e) => e.message).join("\n"));
-        }
-        console.log("MCQ validation successful");
-      },
     });
 
     return result.toTextStreamResponse();
