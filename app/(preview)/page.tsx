@@ -148,28 +148,24 @@ export default function ChatWithFiles() {
   
   const {
     submit: submitMCQ,
-     object: partialMCQ,
+    object: partialMCQ,
     isLoading: isLoadingMCQ,
-    } = experimental_useObject({
+  } = experimental_useObject({
     api: "/api/generate-mcq",
     schema: questionsSchema,
-     initialValue: undefined,
+    initialValue: undefined,
     onError: (error) => {
-   console.log("MCQ generation error:", error);
-    toast.error("Failed to generate MCQ questions. Please try again.");
-    setIsGenerating(false);
-   },
-   
-   onFinish: ({ object }) => {
-     console.log("MCQ generated - Raw object:", object);
-          // Use the helper function to validate and format the questions
-          const validQuestions = safeConvertToQuestions(object);
-          console.log("MCQ generated - Valid questions:", validQuestions.length);
-    setQuestions(validQuestions);
-     setQuestionType('mcq');
-    setIsGenerating(false);
-     },
-     });
+      console.log("MCQ generation error:", error);
+      toast.error("Failed to generate MCQ questions. Please try again.");
+      setIsGenerating(false);
+    },
+    onFinish: ({ object }) => {
+      console.log("MCQ generated - Raw object:", object);
+      setQuestions(object ?? []);
+      setQuestionType('mcq');
+      setIsGenerating(false);
+    },
+  });
   
   const {
     submit: submitTheory,
