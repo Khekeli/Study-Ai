@@ -28,7 +28,7 @@ import { generateQuizTitle } from "./actions";
 import { AnimatePresence, motion } from "framer-motion";
 import { VercelIcon, GitIcon } from "@/components/icons";
 import NewButtons from "@/components/NewButtons";
-import { flashcardsSchema, questionSchema } from "@/lib/types";
+import { flashcardSchema, flashcardsSchema, questionSchema } from "@/lib/types";
 
 type QuestionType = 'quiz' | 'flashcards' | 'mcq' | 'theory';
 
@@ -105,7 +105,7 @@ export default function ChatWithFiles() {
     isLoading,
   } = experimental_useObject({
     api: "/api/generate-quiz",
-    schema: questionsSchema,
+    schema: z.array(questionSchema), // Use dynamic array schema instead of fixed questionsSchema
     initialValue: undefined,
     onError: (error) => {
       console.log("Quiz generation error:", error);
@@ -117,12 +117,17 @@ export default function ChatWithFiles() {
       console.log("Quiz generated - Object type:", typeof object);
       console.log("Quiz generated - Is array:", Array.isArray(object));
       
-      // Convert the object to proper Question format
-      const validQuestions = safeConvertToQuestions(object);
-      console.log("Quiz generated - Valid questions:", validQuestions);
-      console.log("Quiz generated - Valid questions length:", validQuestions.length);
+      // The object should already be in the correct format since we're using z.array(questionSchema)
+      if (Array.isArray(object)) {
+        console.log("Quiz generated - Setting questions directly:", object);
+        setQuestions(object);
+      } else {
+        // Fallback to safe conversion if needed
+        const validQuestions = safeConvertToQuestions(object);
+        console.log("Quiz generated - Valid questions:", validQuestions);
+        setQuestions(validQuestions);
+      }
       
-      setQuestions(validQuestions);
       setQuestionType('quiz');
       setIsGenerating(false);
     },
@@ -134,7 +139,7 @@ export default function ChatWithFiles() {
     isLoading: isLoadingFlashCards,
   } = experimental_useObject({
     api: "/api/generate-flashcards",
-    schema: flashcardsSchema,
+    schema: z.array(flashcardSchema), // Use dynamic array schema instead of fixed flashcardsSchema
     initialValue: undefined,
     onError: (error) => {
       console.log("Flashcards generation error:", error);
@@ -143,11 +148,20 @@ export default function ChatWithFiles() {
     },
     onFinish: ({ object }) => {
       console.log("Flashcards generated - Raw object:", object);
-      setFlashcards(object ?? []);
+      console.log("Flashcards generated - Object type:", typeof object);
+      console.log("Flashcards generated - Is array:", Array.isArray(object));
+      
+      // Convert the object to proper Flashcard format
+      const validFlashcards = safeConvertToFlashcards(object);
+      console.log("Flashcards generated - Valid flashcards:", validFlashcards);
+      console.log("Flashcards generated - Valid flashcards length:", validFlashcards.length);
+      
+      setFlashcards(validFlashcards);
       setQuestionType('flashcards');
       setIsGenerating(false);
     },
   });
+  
   
   const {
     submit: submitMCQ,

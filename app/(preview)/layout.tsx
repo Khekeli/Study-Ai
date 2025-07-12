@@ -7,7 +7,7 @@ import { Geist } from "next/font/google";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(""),
+  metadataBase: new URL("https://www.freepik.com/free-ai-image/cartoon-style-summer-scene-with-cute-animals_94510408.htm#fromView=keyword&page=1&position=1&uuid=355fd8ac-21cb-4e1e-b328-b92ac9d0d495&query=Cute+Aesthetic+Wallpapers"),
   title: "Maampee's Study Assistant",
   description: "A study partner for Addobea",
 };

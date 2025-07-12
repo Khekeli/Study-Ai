@@ -1,6 +1,7 @@
-import { questionSchema, questionsSchema } from "@/lib/schemas";
+import { questionSchema } from "@/lib/schemas";
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
+import { z } from "zod";
 
 export const maxDuration = 60;
 
@@ -14,6 +15,9 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    // Create dynamic schema based on numberOfQuestions
+    const dynamicQuestionsSchema = z.array(questionSchema).min(1).max(numberOfQuestions || 45);
 
     const result = streamObject({
       model: google("gemini-2.5-flash"),
@@ -37,7 +41,7 @@ export async function POST(req: Request) {
       output: "array",
       onFinish: ({ object }) => {
         console.log("Quiz generation finished, object:", object);
-        const res = questionsSchema.safeParse(object);
+        const res = dynamicQuestionsSchema.safeParse(object);
         if (res.error) {
           console.error("Quiz validation error:", res.error.errors);
           throw new Error(res.error.errors.map((e) => e.message).join("\n"));
