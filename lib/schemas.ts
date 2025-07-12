@@ -13,6 +13,7 @@ export const questionSchema = z.object({
     .describe(
       "The correct answer, where A is the first option, B is the second, and so on.",
     ),
+  explanation: z.string().optional().describe("Additional explanation for the answer"),
 });
 
 export type Question = z.infer<typeof questionSchema>;
