@@ -16,6 +16,8 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Quiz from "@/components/quiz";
 import FlashCards from "@/components/FlashCards";
 import MCQQuestions from "@/components/MCQQuestions";
@@ -26,7 +28,7 @@ import { generateQuizTitle } from "./actions";
 import { AnimatePresence, motion } from "framer-motion";
 import { VercelIcon, GitIcon } from "@/components/icons";
 import NewButtons from "@/components/NewButtons";
-import { flashcardsSchema } from "@/lib/types";
+import { flashcardsSchema, questionSchema } from "@/lib/types";
 
 type QuestionType = 'quiz' | 'flashcards' | 'mcq' | 'theory';
 
@@ -56,6 +58,7 @@ export default function ChatWithFiles() {
   const [isDragging, setIsDragging] = useState(false);
   const [title, setTitle] = useState<string>();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [numberOfQuestions, setNumberOfQuestions] = useState<number>(30);
 
   // Helper function to safely convert partial objects to complete Question objects
   const safeConvertToQuestions = (partialArray: any): Question[] => {
@@ -152,7 +155,7 @@ export default function ChatWithFiles() {
     isLoading: isLoadingMCQ,
   } = experimental_useObject({
     api: "/api/generate-mcq",
-    schema: questionsSchema,
+    schema: z.array(questionSchema),
     initialValue: undefined,
     onError: (error) => {
       console.log("MCQ generation error:", error);
@@ -307,7 +310,7 @@ export default function ChatWithFiles() {
     setIsGenerating(true);
     
     try {
-      submit({ extractedText });
+      submit({ extractedText, numberOfQuestions });
     } catch (error) {
       console.log("Error in handleSubmitWithFiles:", error);
       setIsGenerating(false);
@@ -330,7 +333,7 @@ export default function ChatWithFiles() {
     console.log("Starting flashcard generation...");
     
     try {
-      submitFlashCards({ extractedText });
+      submitFlashCards({ extractedText, numberOfQuestions });
     } catch (error) {
       console.log("Error in handleFlashCards:", error);
       setIsGenerating(false);
@@ -353,7 +356,7 @@ export default function ChatWithFiles() {
     console.log("Starting MCQ generation...");
     
     try {
-      submitMCQ({ extractedText });
+      submitMCQ({ extractedText, numberOfQuestions });
     } catch (error) {
       console.log("Error in handleMCQ:", error);
       setIsGenerating(false);
@@ -376,7 +379,7 @@ export default function ChatWithFiles() {
     console.log("Starting theory generation...");
     
     try {
-      submitTheory({ extractedText });
+      submitTheory({ extractedText, numberOfQuestions });
     } catch (error) {
       console.log("Error in handleTheory:", error);
       setIsGenerating(false);
@@ -393,6 +396,7 @@ export default function ChatWithFiles() {
     setTitle(undefined);
     setIsGenerating(false);
     setIsExtracting(false);
+    setNumberOfQuestions(30);
     
     // Reset any partial states to prevent controller issues
     // Note: The experimental_useObject hooks will handle their own cleanup
@@ -402,7 +406,7 @@ export default function ChatWithFiles() {
   const calculateProgress = (partialData: any, isFlashcardType: boolean = false): number => {
     if (!partialData) return 0;
     const validItems = isFlashcardType ? safeConvertToFlashcards(partialData) : safeConvertToQuestions(partialData);
-    return Math.min((validItems.length / 10) * 100, 100);
+    return Math.min((validItems.length / numberOfQuestions) * 100, 100);
   };
 
   const progress = calculateProgress(partialQuestions);
@@ -619,10 +623,7 @@ export default function ChatWithFiles() {
             >
               <motion.div
                 className="relative flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 transition-colors hover:border-pink-300"
-                whileHover={{ 
-                  scale: 1.02,
-                  borderColor: "rgb(244 114 182 / 0.5)"
-                }}
+              
                 transition={{ duration: 0.2 }}
               >
                 <input
@@ -678,7 +679,6 @@ export default function ChatWithFiles() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.2, delay: index * 0.05 }}
-                        whileHover={{ scale: 1.01 }}
                       >
                         <span className="text-sm truncate flex-1 mr-2">
                           {file.name}
@@ -703,7 +703,31 @@ export default function ChatWithFiles() {
                 )}
               </AnimatePresence>
 
-              
+              {/* Number of Questions Input */}
+              <motion.div
+                className="space-y-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.5 }}
+              >
+                <div className="my-10">
+
+                <Label htmlFor="numberOfQuestions" className="text-sm font-medium m-1">
+                  Number of Questions
+                </Label>
+                <Input
+                  id="numberOfQuestions"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={numberOfQuestions}
+                  onChange={(e) => setNumberOfQuestions(Math.max(1, Math.min(100, parseInt(e.target.value) || 30)))}
+                  className="w-full mt-2"
+                  disabled={anyLoading || isExtracting}
+                  placeholder="30"
+                />
+                </div>
+              </motion.div>
 
               <motion.div
                 whileHover={{ scale: 1.02 }}
@@ -726,7 +750,7 @@ export default function ChatWithFiles() {
                       <span>Generating Quiz...</span>
                     </motion.span>
                   ) : (
-                    "Generate Quiz"
+                    `Generate Quiz`
                   )}
                 </Button>
               </motion.div>
@@ -734,7 +758,7 @@ export default function ChatWithFiles() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
+                transition={{ duration: 0.4, delay: 0.6 }}
               >
                 <NewButtons 
                   onFlashCards={handleFlashCards}

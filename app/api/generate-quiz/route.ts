@@ -6,7 +6,7 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
-    const { extractedText } = await req.json();
+    const { extractedText, numberOfQuestions } = await req.json();
     
     if (!extractedText || extractedText.trim().length === 0) {
       return new Response(JSON.stringify({ error: "No extracted text provided" }), {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         {
           role: "system",
           content:
-            "You are a teacher. Your job is to take extracted text content and create a multiple choice test with 45 questions based on the content. Each option should be roughly equal in length. Focus on key concepts, important facts, and comprehensive understanding of the material.",
+            `You are a teacher. Your job is to take extracted text content and create a multiple choice test with ${numberOfQuestions || 45} questions based on the content. Each option should be roughly equal in length. Focus on key concepts, important facts, and comprehensive understanding of the material.`,
         },
         {
           role: "user",

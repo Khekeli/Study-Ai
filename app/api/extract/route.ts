@@ -280,52 +280,41 @@ export async function POST(req: Request) {
     
     // Only use Gemini for PDF processing if there are PDF files
     if (geminiFiles.length > 0) {
-      // Limit PDF processing to avoid long processing times
-      const maxPdfsToProcess = 2;
-      const pdfsToProcess = geminiFiles.slice(0, maxPdfsToProcess);
-      
-      if (geminiFiles.length > maxPdfsToProcess) {
-        errorMessages.push(`Only processing first ${maxPdfsToProcess} PDF files out of ${geminiFiles.length} provided`);
-      }
-      
-      try {
-        const pdfContent = [
-          {
-            type: "text",
-            text: `Extract text from these PDF files. Be concise and maintain structure:`,
-          },
-          ...pdfsToProcess.map(file => ({
-            type: "file",
-            data: file.data,
-            mimeType: file.mimeType,
-          })),
-        ];
+      // Process each PDF file separately for better performance
+      for (const pdfFile of geminiFiles) {
+        try {
+          const pdfResult = await Promise.race([
+            generateText({
+              model: google("gemini-2.0-flash-exp"),
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: "Extract all text content from this PDF file. Be comprehensive but concise. Return only the extracted text without any additional commentary or formatting."
+                    },
+                    {
+                      type: "file",
+                      data: Buffer.from(pdfFile.data, 'base64'),
+                      mimeType: pdfFile.mimeType || 'application/pdf'
+                    }
+                  ] as any
+                }
+              ]
+            }),
+            new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('PDF processing timeout')), 120000) // 2 minute timeout per PDF
+            )
+          ]);
 
-        const pdfResult = await Promise.race([
-          generateText({
-            model: google("gemini-2.5-flash"),
-            messages: [
-              {
-                role: "system",
-                content: "Extract text from PDF files. Keep output concise and well-structured. Don't add extra formatting or commentary.",
-              },
-              {
-                role: "user",
-                content: JSON.stringify(pdfContent),
-              },
-            ],
-          }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('PDF processing timeout')), 60000) // 1 minute timeout
-          )
-        ]);
-
-        if (pdfResult && typeof pdfResult === 'object' && 'text' in pdfResult) {
-          finalExtractedText += '\n=== PDF Content ===\n' + pdfResult.text;
+          if (pdfResult && typeof pdfResult === 'object' && 'text' in pdfResult) {
+            finalExtractedText += `\n=== ${pdfFile.name} ===\n${pdfResult.text}\n\n`;
+          }
+        } catch (error) {
+          console.error(`PDF processing error for ${pdfFile.name}:`, error);
+          errorMessages.push(`Failed to process PDF ${pdfFile.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-      } catch (error) {
-        console.error('PDF processing error:', error);
-        errorMessages.push(`Failed to process PDF files: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
     

@@ -22,7 +22,7 @@ const NewButtons: React.FC<NewButtonsProps> = ({
   isLoadingTheory = false
 }) => {
   return (
-    <div className="space-y-2 border-2 border-pink-500/40 bg-pink-300/10 rounded-md  gap-4 mt-10">
+    <div className="space-y-2 border-2 border-pink-500/20 bg-pink-300/10 rounded-md  gap-4 mt-10">
       <div className='p-4 flex flex-row gap-4'>
 
           <Button
