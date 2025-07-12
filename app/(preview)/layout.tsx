@@ -7,7 +7,7 @@ import { Geist } from "next/font/google";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ai-sdk-preview-pdf-support.vercel.app"),
+  metadataBase: new URL(""),
   title: "Maampee's Study Assistant",
   description: "A study partner for Addobea",
 };
