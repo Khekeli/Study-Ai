@@ -161,7 +161,15 @@ export default function ChatWithFiles() {
     },
     onFinish: ({ object }) => {
       console.log("MCQ generated - Raw object:", object);
-      setQuestions(object ?? []);
+      console.log("MCQ generated - Object type:", typeof object);
+      console.log("MCQ generated - Is array:", Array.isArray(object));
+      
+      // Convert the object to proper Question format
+      const validQuestions = safeConvertToQuestions(object);
+      console.log("MCQ generated - Valid questions:", validQuestions);
+      console.log("MCQ generated - Valid questions length:", validQuestions.length);
+      
+      setQuestions(validQuestions);
       setQuestionType('mcq');
       setIsGenerating(false);
     },
