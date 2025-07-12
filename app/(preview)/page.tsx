@@ -622,7 +622,7 @@ export default function ChatWithFiles() {
                 <span className="text-pink-500">Maampee&apos;s </span> <span className="text-2xl px-2"> Ai </span>
               </CardTitle>
               <CardDescription className="text-base">
-                This is Maampee&apos;s own ai studymate!
+                This is to help with your studies.
                 Please upload your PDF or PPT to get multiple choice questions.
               </CardDescription>
             </motion.div>

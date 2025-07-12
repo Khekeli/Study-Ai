@@ -1,4 +1,4 @@
-import { questionSchema } from "@/lib/schemas";
+import { questionSchema } from "@/lib/types";
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 import { z } from "zod";
@@ -16,8 +16,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // Create dynamic schema based on numberOfQuestions
-    const dynamicQuestionsSchema = z.array(questionSchema).min(1).max(numberOfQuestions || 45);
+    // Create a dynamic schema based on numberOfQuestions
+    const dynamicQuestionsSchema = z.array(questionSchema).min(1).max(numberOfQuestions || 100);
 
     const result = streamObject({
       model: google("gemini-2.5-flash"),
@@ -25,35 +25,53 @@ export async function POST(req: Request) {
         {
           role: "system",
           content:
-            `You are a teacher. Your job is to take extracted text content and create a multiple choice test with ${numberOfQuestions || 45} questions based on the content. Each option should be roughly equal in length. Focus on key concepts, important facts, and comprehensive understanding of the material.`,
+            `You are a teacher creating quiz questions for students. Create exactly ${numberOfQuestions || 45} multiple choice questions that test understanding of the material. 
+            
+            IMPORTANT: You must respond with a JSON array of questions. Each question object must have:
+            - question: string (the question text)
+            - options: array of exactly 4 strings (A, B, C, D options)
+            - answer: string (must be "A", "B", "C", or "D")
+            - explanation: string (optional explanation)
+            
+            Example format:
+            [
+              {
+                "question": "What is the main concept discussed?",
+                "options": ["Option A", "Option B", "Option C", "Option D"],
+                "answer": "A",
+                "explanation": "This is correct because..."
+              }
+            ]`,
         },
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Create a multiple choice test based on this extracted text content:\n\n${extractedText}`,
-            },
-          ],
+          content: `Create ${numberOfQuestions || 45} quiz questions based on this extracted text content. Each question should have 4 multiple choice options and test key concepts:\n\n${extractedText}`,
         },
       ],
-      schema: questionSchema,
-      output: "array",
+      schema: dynamicQuestionsSchema,
       onFinish: ({ object }) => {
         console.log("Quiz generation finished, object:", object);
+        console.log("Quiz generation finished, object type:", typeof object);
+        console.log("Quiz generation finished, is array:", Array.isArray(object));
+        
+        if (!object) {
+          console.error("Quiz generation returned undefined object");
+          return;
+        }
+        
         const res = dynamicQuestionsSchema.safeParse(object);
         if (res.error) {
           console.error("Quiz validation error:", res.error.errors);
           throw new Error(res.error.errors.map((e) => e.message).join("\n"));
         }
-        console.log("Quiz validation successful");
+        console.log("Quiz validation successful, questions count:", object.length);
       },
     });
 
     return result.toTextStreamResponse();
   } catch (error) {
     console.error("Quiz API error:", error);
-    return new Response(JSON.stringify({ error: "Failed to generate quiz questions" }), {
+    return new Response(JSON.stringify({ error: "Failed to generate quiz" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
