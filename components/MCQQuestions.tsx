@@ -631,7 +631,7 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
                           <span className="sm:hidden">Loading...</span>
                         </>
                       ) : (
-                        'Explain'
+                        'Explain with more detial'
                       )}
                     </Button>
                     <Button

@@ -182,6 +182,47 @@ function chunkContent(content: string, maxLength: number = 30000): string[] {
   return chunks;
 }
 
+// Function to validate PDF base64 data
+function validatePdfData(base64Data: string): boolean {
+  try {
+    console.log('=== VALIDATING PDF DATA ===');
+    console.log('Base64 data length:', base64Data.length);
+    console.log('First 100 chars of base64:', base64Data.substring(0, 100));
+    
+    // Clean base64 data (remove data URL prefix if present)
+    let cleanBase64Data = base64Data;
+    if (cleanBase64Data.startsWith('data:')) {
+      const commaIndex = cleanBase64Data.indexOf(',');
+      if (commaIndex !== -1) {
+        cleanBase64Data = cleanBase64Data.substring(commaIndex + 1);
+        console.log('Removed data URL prefix, new length:', cleanBase64Data.length);
+      }
+    }
+    
+    // Check if it's valid base64
+    const buffer = Buffer.from(cleanBase64Data, 'base64');
+    console.log('Buffer length:', buffer.length);
+    
+    // Check minimum size (PDF files are typically at least 1KB)
+    if (buffer.length < 1024) {
+      console.log('PDF validation failed: File too small');
+      return false;
+    }
+    
+    // Check for PDF header in the actual binary data
+    const header = buffer.toString('ascii', 0, 8);
+    console.log('PDF header:', header);
+    console.log('Header bytes:', Array.from(buffer.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+    
+    const isValid = header.startsWith('%PDF');
+    console.log('PDF validation result:', isValid);
+    return isValid;
+  } catch (error) {
+    console.log('PDF validation error:', error);
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   const startTime = Date.now();
   
@@ -234,6 +275,16 @@ export async function POST(req: Request) {
           });
         }
       } else if (fileType === 'pdf') {
+        // Validate PDF data before processing
+        if (!validatePdfData(file.data)) {
+          processedFiles.push({
+            name: file.name,
+            type: 'error',
+            content: `Invalid or corrupted PDF file: ${file.name}`
+          });
+          continue;
+        }
+        
         // Keep PDF files for Gemini to process, but limit size
         const maxPdfSize = 10 * 1024 * 1024; // 10MB limit for PDFs
         if (file.data.length > maxPdfSize) {
@@ -283,6 +334,19 @@ export async function POST(req: Request) {
       // Process each PDF file separately for better performance
       for (const pdfFile of geminiFiles) {
         try {
+          console.log(`Processing PDF: ${pdfFile.name}, base64 length: ${pdfFile.data.length}`);
+          
+          // Validate base64 data is clean (no data URL prefix)
+          let cleanBase64Data = pdfFile.data;
+          if (cleanBase64Data.startsWith('data:')) {
+            const commaIndex = cleanBase64Data.indexOf(',');
+            if (commaIndex !== -1) {
+              cleanBase64Data = cleanBase64Data.substring(commaIndex + 1);
+            }
+          }
+          
+          console.log(`Clean base64 length: ${cleanBase64Data.length}`);
+          
           const pdfResult = await Promise.race([
             generateText({
               model: google("gemini-2.0-flash-exp"),
@@ -292,31 +356,65 @@ export async function POST(req: Request) {
                   content: [
                     {
                       type: "text",
-                      text: "Extract all text content from this PDF file. Be comprehensive but concise. Return only the extracted text without any additional commentary or formatting."
+                      text: "Extract all text content from this PDF document. Return only the text content without any additional formatting or explanations. Include headings, paragraphs, lists, and any readable text."
                     },
                     {
                       type: "file",
-                      data: Buffer.from(pdfFile.data, 'base64'),
-                      mimeType: pdfFile.mimeType || 'application/pdf'
+                      data: cleanBase64Data,
+                      mimeType: 'application/pdf'
                     }
-                  ] as any
+                  ]
                 }
-              ]
+              ],
+              maxTokens: 8000,
+              temperature: 0
             }),
             new Promise<never>((_, reject) => 
               setTimeout(() => reject(new Error('PDF processing timeout')), 120000) // 2 minute timeout per PDF
             )
           ]);
 
-          if (pdfResult && typeof pdfResult === 'object' && 'text' in pdfResult) {
-            finalExtractedText += `\n=== ${pdfFile.name} ===\n${pdfResult.text}\n\n`;
+          console.log(`PDF processing result for ${pdfFile.name}:`, pdfResult?.text ? `Success - ${pdfResult.text.length} characters` : 'No text returned');
+          
+          if (pdfResult && pdfResult.text && pdfResult.text.trim()) {
+            const extractedText = pdfResult.text.trim();
+            console.log(`Extracted text from ${pdfFile.name}:`, extractedText.substring(0, 500) + (extractedText.length > 500 ? '...' : ''));
+            finalExtractedText += `\n=== ${pdfFile.name} ===\n${extractedText}\n\n`;
+          } else {
+            console.warn(`No text extracted from ${pdfFile.name}`);
+            console.log(`Full PDF result for ${pdfFile.name}:`, pdfResult);
+            errorMessages.push(`No text content found in PDF: ${pdfFile.name}`);
           }
         } catch (error) {
           console.error(`PDF processing error for ${pdfFile.name}:`, error);
-          errorMessages.push(`Failed to process PDF ${pdfFile.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          
+          // Handle specific error cases
+          let errorMessage = `Failed to process PDF ${pdfFile.name}`;
+          if (error instanceof Error) {
+            if (error.message.includes('no pages') || error.message.includes('document has no pages')) {
+              errorMessage += ': PDF appears to be empty or corrupted';
+            } else if (error.message.includes('timeout')) {
+              errorMessage += ': Processing timed out';
+            } else if (error.message.includes('AI_APICallError')) {
+              errorMessage += ': API call failed - ' + error.message;
+            } else if (error.message.includes('400') || error.message.includes('Bad Request')) {
+              errorMessage += ': Invalid PDF format or corrupted file';
+            } else {
+              errorMessage += `: ${error.message}`;
+            }
+          }
+          
+          errorMessages.push(errorMessage);
         }
       }
     }
+    
+    // Log final results
+    console.log('=== FINAL EXTRACTION RESULTS ===');
+    console.log('Total extracted text length:', finalExtractedText.length);
+    console.log('PDFs processed:', geminiFiles.length);
+    console.log('Errors:', errorMessages);
+    console.log('Final text preview:', finalExtractedText.substring(0, 1000) + (finalExtractedText.length > 1000 ? '...' : ''));
     
     // Return the combined extracted text
     return new Response(JSON.stringify({ 
@@ -325,7 +423,12 @@ export async function POST(req: Request) {
       processedFiles: processedFiles.length,
       errors: errorMessages,
       pdfProcessed: geminiFiles.length > 0,
-      fastMode: true // Indicates we used fast processing
+      fastMode: true, // Indicates we used fast processing
+      debugInfo: {
+        totalExtractedLength: finalExtractedText.length,
+        pdfsProcessed: geminiFiles.length,
+        textPreview: finalExtractedText.substring(0, 500)
+      }
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
