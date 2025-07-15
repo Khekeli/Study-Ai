@@ -15,6 +15,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import ExtractedTextStorage from "@/components/ExtractedTextStorage";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,13 +23,10 @@ import Quiz from "@/components/quiz";
 import FlashCards from "@/components/FlashCards";
 import MCQQuestions from "@/components/MCQQuestions";
 import TheoryQuestions from "@/components/TheoryQuestions";
-import { Link } from "@/components/ui/link";
-import NextLink from "next/link";
 import { generateQuizTitle } from "./actions";
 import { AnimatePresence, motion } from "framer-motion";
-import { VercelIcon, GitIcon } from "@/components/icons";
 import NewButtons from "@/components/NewButtons";
-import { flashcardSchema, flashcardsSchema, questionSchema } from "@/lib/types";
+import { flashcardSchema,  questionSchema } from "@/lib/types";
 
 type QuestionType = 'quiz' | 'flashcards' | 'mcq' | 'theory';
 
@@ -59,6 +57,51 @@ export default function ChatWithFiles() {
   const [title, setTitle] = useState<string>();
   const [isGenerating, setIsGenerating] = useState(false);
   const [numberOfQuestions, setNumberOfQuestions] = useState<number>(30);
+
+  const handleLoadText = (text: string, name: string) => {
+    setExtractedText(text);
+    setTitle(name);
+    toast.success(`Loaded "${name}"`);
+  };
+  
+  const handleGenerateQuizFromSaved = (text: string, name: string) => {
+    setExtractedText(text);
+    setTitle(name);
+    setIsGenerating(true);
+    try {
+      submit({ extractedText: text, numberOfQuestions });
+    } catch (error) {
+      console.log("Error generating quiz from saved text:", error);
+      setIsGenerating(false);
+      toast.error("Failed to generate quiz. Please try again.");
+    }
+  };
+  
+  const handleGenerateFlashCardsFromSaved = (text: string, name: string) => {
+    setExtractedText(text);
+    setTitle(name);
+    setIsGenerating(true);
+    try {
+      submitFlashCards({ extractedText: text, numberOfQuestions });
+    } catch (error) {
+      console.log("Error generating flashcards from saved text:", error);
+      setIsGenerating(false);
+      toast.error("Failed to generate flashcards. Please try again.");
+    }
+  };
+  
+  const handleGenerateMCQFromSaved = (text: string, name: string) => {
+    setExtractedText(text);
+    setTitle(name);
+    setIsGenerating(true);
+    try {
+      submitMCQ({ extractedText: text, numberOfQuestions });
+    } catch (error) {
+      console.log("Error generating MCQ from saved text:", error);
+      setIsGenerating(false);
+      toast.error("Failed to generate MCQ. Please try again.");
+    }
+  };
 
   // Helper function to safely convert partial objects to complete Question objects
   const safeConvertToQuestions = (partialArray: any): Question[] => {
@@ -716,6 +759,19 @@ export default function ChatWithFiles() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <ExtractedTextStorage
+              extractedText={extractedText}
+              fileName={files.length > 0 ? files[0].name : ""}
+              onLoadText={handleLoadText}
+              onGenerateQuiz={handleGenerateQuizFromSaved}
+              onGenerateFlashCards={handleGenerateFlashCardsFromSaved}
+              onGenerateMCQ={handleGenerateMCQFromSaved}
+              disabled={anyLoading || isExtracting}
+              isLoadingQuiz={isLoading}
+              isLoadingFlashCards={isLoadingFlashCards}
+              isLoadingMCQ={isLoadingMCQ}
+            />
 
               {/* Number of Questions Input */}
               <motion.div
