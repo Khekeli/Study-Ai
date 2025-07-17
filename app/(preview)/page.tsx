@@ -893,6 +893,29 @@ export default function ChatWithFiles() {
               </CardContent>
             </Card>
 
+            {/* Text Storage - Mobile: Show before Study Modes */}
+            <div className="lg:hidden">
+              <Card className="border-2 border-blue-200 dark:border-blue-800 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-xl font-semibold text-blue-600 dark:text-blue-400">
+                    TEXT SELECTION
+                  </CardTitle>
+                  <CardDescription>
+                    Save and manage your extracted content
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ExtractedTextStorage
+                    extractedText={extractedText}
+                    fileName={files.length > 0 ? files[0].name : ""}
+                    onLoadText={handleLoadText}
+                    disabled={anyLoading || isExtracting}
+                    hasUploadedFiles={hasUploadedFiles}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Study Modes Section */}
             <Card className="border-2 border-pink-500/10 dark:border-pink-600/20 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm">
               <CardHeader>
@@ -999,9 +1022,9 @@ export default function ChatWithFiles() {
             </Card>
           </motion.div>
 
-          {/* Right Column - Text Selection */}
+          {/* Right Column - Text Selection (Desktop Only) */}
           <motion.div
-            className="space-y-6"
+            className="space-y-6 hidden lg:block"
             initial={{ x: 30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.7, ease: "easeOut", delay: 0.2 }}

@@ -33,7 +33,21 @@ const ExtractedTextStorage: React.FC<ExtractedTextStorageProps> = ({
 }) => {
   const [savedTexts, setSavedTexts] = useState<SavedText[]>([]);
   const [customName, setCustomName] = useState("");
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if screen is mobile size
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+      // On desktop, expand by default; on mobile, minimize by default
+      setIsExpanded(window.innerWidth >= 1024);
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Load saved texts from localStorage on component mount
