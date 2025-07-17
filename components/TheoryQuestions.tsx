@@ -1208,7 +1208,7 @@ export default function TheoryQuestions({
                 <div className="text-center">
                   <div className="text-6xl mb-4">🎉</div>
                   <p className="text-green-300 text-lg mb-4">
-                    Excellent work! You've mastered all the questions.
+                    Excellent work! You&apos;ve mastered all the questions.
                   </p>
                   <p className="text-gray-300 text-sm">
                     All questions scored 3 stars. Great job!
