@@ -508,10 +508,22 @@ export default function ChatWithFiles() {
     return Math.min((validItems.length / numberOfQuestions) * 100, 100);
   };
 
+  // Special progress calculation for theory questions
+  const calculateTheoryProgress = (partialTheory: any): number => {
+    if (!partialTheory || !partialTheory.questions) return 0;
+    const validQuestions = Array.isArray(partialTheory.questions)
+      ? partialTheory.questions.filter(
+          (q: any) =>
+            q && typeof q.question === "string" && typeof q.answer === "string"
+        )
+      : [];
+    return Math.min((validQuestions.length / numberOfQuestions) * 100, 100);
+  };
+
   const progress = calculateProgress(partialQuestions);
   const flashCardProgress = calculateProgress(partialFlashCards, true);
   const mcqProgress = calculateProgress(partialMCQ);
-  const theoryProgress = calculateProgress(partialTheory);
+  const theoryProgress = calculateTheoryProgress(partialTheory);
 
   const currentProgress = isLoading
     ? progress
@@ -528,7 +540,17 @@ export default function ChatWithFiles() {
     if (partialQuestions) return safeConvertToQuestions(partialQuestions);
     if (partialFlashCards) return safeConvertToFlashcards(partialFlashCards);
     if (partialMCQ) return safeConvertToQuestions(partialMCQ);
-    if (partialTheory) return safeConvertToQuestions(partialTheory);
+    if (partialTheory && partialTheory.questions) {
+      // For theory, return the questions array from the nested structure
+      return Array.isArray(partialTheory.questions)
+        ? partialTheory.questions.filter(
+            (q: any) =>
+              q &&
+              typeof q.question === "string" &&
+              typeof q.answer === "string"
+          )
+        : [];
+    }
     return [];
   };
 
