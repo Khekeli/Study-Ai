@@ -3,29 +3,34 @@ import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 import { z } from "zod";
 
-export const maxDuration = 60;
+export const maxDuration = 150;
 
 export async function POST(req: Request) {
   try {
     const { extractedText, numberOfQuestions } = await req.json();
-    
+
     if (!extractedText || extractedText.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "No extracted text provided" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "No extracted text provided" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Create a dynamic schema based on numberOfQuestions
-    const dynamicFlashcardsSchema = z.array(flashcardSchema).min(1).max(numberOfQuestions || 100);
+    const dynamicFlashcardsSchema = z
+      .array(flashcardSchema)
+      .min(1)
+      .max(numberOfQuestions || 100);
 
     const result = streamObject({
       model: google("gemini-2.5-flash"),
       messages: [
         {
           role: "system",
-          content:
-            `You are a teacher creating flashcards for students based on PROVIDED TEXT CONTENT. You must create exactly ${numberOfQuestions || 45} flashcard questions that are perfect for memorization and review of the SPECIFIC CONTENT provided by the user.
+          content: `You are a teacher creating flashcards for students based on PROVIDED TEXT CONTENT. You must create exactly ${numberOfQuestions || 45} flashcard questions that are perfect for memorization and review of the SPECIFIC CONTENT provided by the user.
 
 CRITICAL: You must ONLY use information from the text content provided by the user. Do not add external knowledge or information not present in the text.
 
@@ -64,12 +69,12 @@ Please analyze this text thoroughly and create ${numberOfQuestions || 45} flashc
         console.log("Flashcards generation finished, object:", object);
         console.log("Object type:", typeof object);
         console.log("Is array:", Array.isArray(object));
-        
+
         if (!object) {
           console.error("Flashcards generation returned undefined object");
           return;
         }
-        
+
         const res = dynamicFlashcardsSchema.safeParse(object);
         if (res.error) {
           console.error("Flashcards validation error:", res.error.errors);
@@ -82,9 +87,12 @@ Please analyze this text thoroughly and create ${numberOfQuestions || 45} flashc
     return result.toTextStreamResponse();
   } catch (error) {
     console.error("Flashcards API error:", error);
-    return new Response(JSON.stringify({ error: "Failed to generate flashcards" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Failed to generate flashcards" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }

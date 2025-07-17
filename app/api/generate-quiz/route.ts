@@ -3,29 +3,34 @@ import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 import { z } from "zod";
 
-export const maxDuration = 60;
+export const maxDuration = 150;
 
 export async function POST(req: Request) {
   try {
     const { extractedText, numberOfQuestions } = await req.json();
-    
+
     if (!extractedText || extractedText.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "No extracted text provided" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "No extracted text provided" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Create a dynamic schema based on numberOfQuestions
-    const dynamicQuestionsSchema = z.array(questionSchema).min(1).max(numberOfQuestions || 100);
+    const dynamicQuestionsSchema = z
+      .array(questionSchema)
+      .min(1)
+      .max(numberOfQuestions || 100);
 
     const result = streamObject({
       model: google("gemini-2.5-flash"),
       messages: [
         {
           role: "system",
-          content:
-            `You are a teacher creating quiz questions for students. Create exactly ${numberOfQuestions || 45} multiple choice questions that test understanding of the material. 
+          content: `You are a teacher creating quiz questions for students. Create exactly ${numberOfQuestions || 45} multiple choice questions that test understanding of the material. 
             
             IMPORTANT: You must respond with a JSON array of questions. Each question object must have:
             - question: string (the question text)
@@ -52,19 +57,25 @@ export async function POST(req: Request) {
       onFinish: ({ object }) => {
         console.log("Quiz generation finished, object:", object);
         console.log("Quiz generation finished, object type:", typeof object);
-        console.log("Quiz generation finished, is array:", Array.isArray(object));
-        
+        console.log(
+          "Quiz generation finished, is array:",
+          Array.isArray(object)
+        );
+
         if (!object) {
           console.error("Quiz generation returned undefined object");
           return;
         }
-        
+
         const res = dynamicQuestionsSchema.safeParse(object);
         if (res.error) {
           console.error("Quiz validation error:", res.error.errors);
           throw new Error(res.error.errors.map((e) => e.message).join("\n"));
         }
-        console.log("Quiz validation successful, questions count:", object.length);
+        console.log(
+          "Quiz validation successful, questions count:",
+          object.length
+        );
       },
     });
 

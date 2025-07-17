@@ -3,17 +3,20 @@ import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 import { z } from "zod";
 
-export const maxDuration = 60;
+export const maxDuration = 150;
 
 export async function POST(req: Request) {
   try {
     const { extractedText, numberOfQuestions } = await req.json();
-    
+
     if (!extractedText || extractedText.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "No extracted text provided" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "No extracted text provided" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     const result = streamObject({
@@ -21,8 +24,7 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content:
-            `You are a teacher creating comprehensive multiple choice questions. Create ${numberOfQuestions || 45} detailed MCQ questions that test deep understanding, application, and analysis of the content. Each question object must have: question (string), options (array of exactly 4 strings), answer (one of 'A', 'B', 'C', 'D'), and explanation (string).`,
+          content: `You are a teacher creating comprehensive multiple choice questions. Create ${numberOfQuestions || 45} detailed MCQ questions that test deep understanding, application, and analysis of the content. Each question object must have: question (string), options (array of exactly 4 strings), answer (one of 'A', 'B', 'C', 'D'), and explanation (string).`,
         },
         {
           role: "user",
@@ -48,9 +50,12 @@ export async function POST(req: Request) {
     return result.toTextStreamResponse();
   } catch (error) {
     console.error("MCQ API error:", error);
-    return new Response(JSON.stringify({ error: "Failed to generate MCQ questions" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Failed to generate MCQ questions" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }

@@ -6,12 +6,12 @@ import { streamObject } from "ai";
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '50mb',
+      sizeLimit: "50mb",
     },
   },
 };
 
-export const maxDuration = 60;
+export const maxDuration = 150;
 
 export async function POST(req: Request) {
   try {
@@ -21,9 +21,10 @@ export async function POST(req: Request) {
     const content = [
       {
         type: "text",
-        text: files.length > 1 
-          ? `Create theory-based multiple choice questions based on these ${files.length} documents. Focus on theoretical concepts, principles, and conceptual understanding.`
-          : "Create theory-based multiple choice questions based on this document. Focus on theoretical concepts, principles, and conceptual understanding.",
+        text:
+          files.length > 1
+            ? `Create theory-based multiple choice questions based on these ${files.length} documents. Focus on theoretical concepts, principles, and conceptual understanding.`
+            : "Create theory-based multiple choice questions based on this document. Focus on theoretical concepts, principles, and conceptual understanding.",
       },
       // Add all files to the content
       ...files.map((file: { data: string; name: string }) => ({

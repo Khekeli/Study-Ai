@@ -5,7 +5,7 @@ import { experimental_useObject } from "ai/react";
 import { questionsSchema } from "@/lib/schemas";
 import { z } from "zod";
 import { toast } from "sonner";
-import { FileUp, Plus, Loader,Loader2, X } from "lucide-react";
+import { FileUp, Plus, Loader, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,9 +26,9 @@ import TheoryQuestions from "@/components/TheoryQuestions";
 import { generateQuizTitle } from "./actions";
 import { AnimatePresence, motion } from "framer-motion";
 import NewButtons from "@/components/NewButtons";
-import { flashcardSchema,  questionSchema } from "@/lib/types";
+import { flashcardSchema, questionSchema } from "@/lib/types";
 
-type QuestionType = 'quiz' | 'flashcards' | 'mcq' | 'theory';
+type QuestionType = "quiz" | "flashcards" | "mcq" | "theory";
 
 // Define the complete Question type to match what components expect
 interface Question {
@@ -52,93 +52,63 @@ export default function ChatWithFiles() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [questionType, setQuestionType] = useState<QuestionType>('quiz');
+  const [questionType, setQuestionType] = useState<QuestionType>("quiz");
   const [isDragging, setIsDragging] = useState(false);
   const [title, setTitle] = useState<string>();
   const [isGenerating, setIsGenerating] = useState(false);
   const [numberOfQuestions, setNumberOfQuestions] = useState<number>(30);
+  const [hasUploadedFiles, setHasUploadedFiles] = useState(false);
 
   const handleLoadText = (text: string, name: string) => {
     setExtractedText(text);
     setTitle(name);
-    toast.success(`Loaded "${name}"`);
-  };
-  
-  const handleGenerateQuizFromSaved = (text: string, name: string) => {
-    setExtractedText(text);
-    setTitle(name);
-    setIsGenerating(true);
-    try {
-      submit({ extractedText: text, numberOfQuestions });
-    } catch (error) {
-      console.log("Error generating quiz from saved text:", error);
-      setIsGenerating(false);
-      toast.error("Failed to generate quiz. Please try again.");
-    }
-  };
-  
-  const handleGenerateFlashCardsFromSaved = (text: string, name: string) => {
-    setExtractedText(text);
-    setTitle(name);
-    setIsGenerating(true);
-    try {
-      submitFlashCards({ extractedText: text, numberOfQuestions });
-    } catch (error) {
-      console.log("Error generating flashcards from saved text:", error);
-      setIsGenerating(false);
-      toast.error("Failed to generate flashcards. Please try again.");
-    }
-  };
-  
-  const handleGenerateMCQFromSaved = (text: string, name: string) => {
-    setExtractedText(text);
-    setTitle(name);
-    setIsGenerating(true);
-    try {
-      submitMCQ({ extractedText: text, numberOfQuestions });
-    } catch (error) {
-      console.log("Error generating MCQ from saved text:", error);
-      setIsGenerating(false);
-      toast.error("Failed to generate MCQ. Please try again.");
-    }
+    setHasUploadedFiles(false); // Add this line
+    toast.success(
+      `Loaded "${name}" - you can now generate questions using the buttons below`
+    );
   };
 
   // Helper function to safely convert partial objects to complete Question objects
   const safeConvertToQuestions = (partialArray: any): Question[] => {
     if (!Array.isArray(partialArray)) return [];
-    
+
     return partialArray
-      .filter((item): item is Question => 
-        item && 
-        typeof item === 'object' &&
-        typeof item.question === 'string' &&
-        Array.isArray(item.options) &&
-        (item.answer === "A" || item.answer === "B" || item.answer === "C" || item.answer === "D")
+      .filter(
+        (item): item is Question =>
+          item &&
+          typeof item === "object" &&
+          typeof item.question === "string" &&
+          Array.isArray(item.options) &&
+          (item.answer === "A" ||
+            item.answer === "B" ||
+            item.answer === "C" ||
+            item.answer === "D")
       )
-      .map(item => ({
+      .map((item) => ({
         question: item.question,
         options: item.options,
         answer: item.answer as "A" | "B" | "C" | "D",
-        explanation: item.explanation || undefined
+        explanation: item.explanation || undefined,
       }));
   };
 
   // Helper function to safely convert partial objects to complete Flashcard objects
   const safeConvertToFlashcards = (partialArray: any): Flashcard[] => {
     if (!Array.isArray(partialArray)) return [];
-    
+
     return partialArray
-      .filter((item): item is Flashcard => 
-        item && 
-        typeof item === 'object' &&
-        typeof item.question === 'string' &&
-        typeof item.answer === 'string'
+      .filter(
+        (item): item is Flashcard =>
+          item &&
+          typeof item === "object" &&
+          typeof item.question === "string" &&
+          typeof item.answer === "string"
       )
-      .map(item => ({
+      .map((item) => ({
         question: item.question,
         answer: item.answer,
         explanation: item.explanation || undefined,
-        options: item.options || undefined
+        options: item.options || undefined,
       }));
   };
 
@@ -159,7 +129,7 @@ export default function ChatWithFiles() {
       console.log("Quiz generated - Raw object:", object);
       console.log("Quiz generated - Object type:", typeof object);
       console.log("Quiz generated - Is array:", Array.isArray(object));
-      
+
       // The object should already be in the correct format since we're using z.array(questionSchema)
       if (Array.isArray(object)) {
         console.log("Quiz generated - Setting questions directly:", object);
@@ -170,12 +140,12 @@ export default function ChatWithFiles() {
         console.log("Quiz generated - Valid questions:", validQuestions);
         setQuestions(validQuestions);
       }
-      
-      setQuestionType('quiz');
+
+      setQuestionType("quiz");
       setIsGenerating(false);
     },
   });
-  
+
   const {
     submit: submitFlashCards,
     object: partialFlashCards,
@@ -193,19 +163,21 @@ export default function ChatWithFiles() {
       console.log("Flashcards generated - Raw object:", object);
       console.log("Flashcards generated - Object type:", typeof object);
       console.log("Flashcards generated - Is array:", Array.isArray(object));
-      
+
       // Convert the object to proper Flashcard format
       const validFlashcards = safeConvertToFlashcards(object);
       console.log("Flashcards generated - Valid flashcards:", validFlashcards);
-      console.log("Flashcards generated - Valid flashcards length:", validFlashcards.length);
-      
+      console.log(
+        "Flashcards generated - Valid flashcards length:",
+        validFlashcards.length
+      );
+
       setFlashcards(validFlashcards);
-      setQuestionType('flashcards');
+      setQuestionType("flashcards");
       setIsGenerating(false);
     },
   });
-  
-  
+
   const {
     submit: submitMCQ,
     object: partialMCQ,
@@ -223,18 +195,21 @@ export default function ChatWithFiles() {
       console.log("MCQ generated - Raw object:", object);
       console.log("MCQ generated - Object type:", typeof object);
       console.log("MCQ generated - Is array:", Array.isArray(object));
-      
+
       // Convert the object to proper Question format
       const validQuestions = safeConvertToQuestions(object);
       console.log("MCQ generated - Valid questions:", validQuestions);
-      console.log("MCQ generated - Valid questions length:", validQuestions.length);
-      
+      console.log(
+        "MCQ generated - Valid questions length:",
+        validQuestions.length
+      );
+
       setQuestions(validQuestions);
-      setQuestionType('mcq');
+      setQuestionType("mcq");
       setIsGenerating(false);
     },
   });
-  
+
   const {
     submit: submitTheory,
     object: partialTheory,
@@ -251,7 +226,7 @@ export default function ChatWithFiles() {
     onFinish: ({ object }) => {
       console.log("Theory generated - Raw object:", object);
       setQuestions(object ?? []);
-      setQuestionType('theory');
+      setQuestionType("theory");
       setIsGenerating(false);
     },
   });
@@ -261,17 +236,19 @@ export default function ChatWithFiles() {
 
     if (isSafari && isDragging) {
       toast.error(
-        "Safari does not support drag & drop. Please use the file picker.",
+        "Safari does not support drag & drop. Please use the file picker."
       );
       return;
     }
 
     const selectedFiles = Array.from(e.target.files || []);
     const validFiles = selectedFiles.filter(
-      (file) => (file.type === "application/pdf" || 
-                 file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
-                 file.type === "application/vnd.ms-powerpoint") && 
-                file.size <= 30 * 1024 * 1024,
+      (file) =>
+        (file.type === "application/pdf" ||
+          file.type ===
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+          file.type === "application/vnd.ms-powerpoint") &&
+        file.size <= 30 * 1024 * 1024
     );
 
     if (validFiles.length !== selectedFiles.length) {
@@ -281,6 +258,7 @@ export default function ChatWithFiles() {
     // Add new files to existing files instead of replacing
     const newFiles = [...files, ...validFiles];
     setFiles(newFiles);
+    setHasUploadedFiles(newFiles.length > 0);
 
     // Extract text immediately after files are added
     if (validFiles.length > 0) {
@@ -290,20 +268,20 @@ export default function ChatWithFiles() {
 
   const extractTextFromFiles = async (filesToExtract: File[]) => {
     setIsExtracting(true);
-    
+
     try {
       const encodedFiles = await Promise.all(
         filesToExtract.map(async (file) => ({
           name: file.name,
           type: file.type,
           data: await encodeFileAsBase64(file),
-        })),
+        }))
       );
 
-      const response = await fetch('/api/extract', {
-        method: 'POST',
+      const response = await fetch("/api/extract", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ files: encodedFiles }),
       });
@@ -313,7 +291,7 @@ export default function ChatWithFiles() {
       if (result.success) {
         setExtractedText(result.extractedText);
         toast.success("Text extracted successfully!");
-        
+
         // Generate title from first file
         const generatedTitle = await generateQuizTitle(encodedFiles[0].name);
         setTitle(generatedTitle);
@@ -331,7 +309,8 @@ export default function ChatWithFiles() {
   const removeFile = (index: number) => {
     const newFiles = files.filter((_, i) => i !== index);
     setFiles(newFiles);
-    
+    setHasUploadedFiles(newFiles.length > 0);
+
     // If no files left, clear extracted text
     if (newFiles.length === 0) {
       setExtractedText("");
@@ -353,9 +332,11 @@ export default function ChatWithFiles() {
 
   const handleSubmitWithFiles = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (!extractedText) {
-      toast.error("Please upload files and wait for text extraction to complete.");
+      toast.error(
+        "Please upload files and wait for text extraction to complete."
+      );
       return;
     }
 
@@ -365,7 +346,7 @@ export default function ChatWithFiles() {
     }
 
     setIsGenerating(true);
-    
+
     try {
       submit({ extractedText, numberOfQuestions });
     } catch (error) {
@@ -375,20 +356,46 @@ export default function ChatWithFiles() {
     }
   };
 
-  const handleFlashCards = async () => {
+  const handleQuizGeneration = async () => {
     if (!extractedText) {
-      toast.error("Please upload files and wait for text extraction to complete.");
+      toast.error(
+        "Please upload files and wait for text extraction to complete."
+      );
       return;
     }
-    
+
     // Prevent multiple simultaneous calls
     if (anyLoading) {
       return;
     }
-    
+
+    setIsGenerating(true);
+
+    try {
+      submit({ extractedText, numberOfQuestions });
+    } catch (error) {
+      console.log("Error in handleQuizGeneration:", error);
+      setIsGenerating(false);
+      toast.error("Failed to generate quiz. Please try again.");
+    }
+  };
+
+  const handleFlashCards = async () => {
+    if (!extractedText) {
+      toast.error(
+        "Please upload files and wait for text extraction to complete."
+      );
+      return;
+    }
+
+    // Prevent multiple simultaneous calls
+    if (anyLoading) {
+      return;
+    }
+
     setIsGenerating(true);
     console.log("Starting flashcard generation...");
-    
+
     try {
       submitFlashCards({ extractedText, numberOfQuestions });
     } catch (error) {
@@ -400,18 +407,20 @@ export default function ChatWithFiles() {
 
   const handleMCQ = async () => {
     if (!extractedText) {
-      toast.error("Please upload files and wait for text extraction to complete.");
+      toast.error(
+        "Please upload files and wait for text extraction to complete."
+      );
       return;
     }
-    
+
     // Prevent multiple simultaneous calls
     if (anyLoading) {
       return;
     }
-    
+
     setIsGenerating(true);
     console.log("Starting MCQ generation...");
-    
+
     try {
       submitMCQ({ extractedText, numberOfQuestions });
     } catch (error) {
@@ -423,18 +432,20 @@ export default function ChatWithFiles() {
 
   const handleTheory = async () => {
     if (!extractedText) {
-      toast.error("Please upload files and wait for text extraction to complete.");
+      toast.error(
+        "Please upload files and wait for text extraction to complete."
+      );
       return;
     }
-    
+
     // Prevent multiple simultaneous calls
     if (anyLoading) {
       return;
     }
-    
+
     setIsGenerating(true);
     console.log("Starting theory generation...");
-    
+
     try {
       submitTheory({ extractedText, numberOfQuestions });
     } catch (error) {
@@ -446,23 +457,29 @@ export default function ChatWithFiles() {
 
   const clearPDF = () => {
     setFiles([]);
+    setHasUploadedFiles(false);
     setExtractedText("");
     setQuestions([]);
     setFlashcards([]);
-    setQuestionType('quiz');
+    setQuestionType("quiz");
     setTitle(undefined);
     setIsGenerating(false);
     setIsExtracting(false);
     setNumberOfQuestions(30);
-    
+
     // Reset any partial states to prevent controller issues
     // Note: The experimental_useObject hooks will handle their own cleanup
   };
 
   // Calculate progress for different question types
-  const calculateProgress = (partialData: any, isFlashcardType: boolean = false): number => {
+  const calculateProgress = (
+    partialData: any,
+    isFlashcardType: boolean = false
+  ): number => {
     if (!partialData) return 0;
-    const validItems = isFlashcardType ? safeConvertToFlashcards(partialData) : safeConvertToQuestions(partialData);
+    const validItems = isFlashcardType
+      ? safeConvertToFlashcards(partialData)
+      : safeConvertToQuestions(partialData);
     return Math.min((validItems.length / numberOfQuestions) * 100, 100);
   };
 
@@ -471,10 +488,15 @@ export default function ChatWithFiles() {
   const mcqProgress = calculateProgress(partialMCQ);
   const theoryProgress = calculateProgress(partialTheory);
 
-  const currentProgress = isLoading ? progress : 
-                         isLoadingFlashCards ? flashCardProgress :
-                         isLoadingMCQ ? mcqProgress :
-                         isLoadingTheory ? theoryProgress : 0;
+  const currentProgress = isLoading
+    ? progress
+    : isLoadingFlashCards
+      ? flashCardProgress
+      : isLoadingMCQ
+        ? mcqProgress
+        : isLoadingTheory
+          ? theoryProgress
+          : 0;
 
   // Get current partial questions safely
   const getCurrentPartialQuestions = () => {
@@ -487,7 +509,8 @@ export default function ChatWithFiles() {
 
   const currentPartialQuestions = getCurrentPartialQuestions();
   // FIX: Only check for ANY loading state when determining if we should show components
-  const anyLoading = isLoading || isLoadingFlashCards || isLoadingMCQ || isLoadingTheory;
+  const anyLoading =
+    isLoading || isLoadingFlashCards || isLoadingMCQ || isLoadingTheory;
 
   // Enhanced debug logging
   console.log("=== COMPONENT STATE DEBUG ===");
@@ -498,8 +521,14 @@ export default function ChatWithFiles() {
   console.log("Is generating:", isGenerating);
   console.log("Is extracting:", isExtracting);
   console.log("Extracted text length:", extractedText.length);
-  console.log("Current partial questions length:", currentPartialQuestions.length);
-  console.log("Should render component?", (questions.length > 0 || flashcards.length > 0) && !anyLoading);
+  console.log(
+    "Current partial questions length:",
+    currentPartialQuestions.length
+  );
+  console.log(
+    "Should render component?",
+    (questions.length > 0 || flashcards.length > 0) && !anyLoading
+  );
   console.log("===============================");
 
   // Render the appropriate component when questions are ready
@@ -507,10 +536,10 @@ export default function ChatWithFiles() {
     console.log("🎯 Rendering component for type:", questionType);
     console.log("🎯 Questions to render:", questions.length);
     console.log("🎯 Flashcards to render:", flashcards.length);
-    
+
     try {
       switch (questionType) {
-        case 'flashcards':
+        case "flashcards":
           console.log("🎯 Rendering FlashCards component");
           return (
             <motion.div
@@ -518,10 +547,14 @@ export default function ChatWithFiles() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <FlashCards title={title ?? "Flashcards"} questions={flashcards} clearPDF={clearPDF} />
+              <FlashCards
+                title={title ?? "Flashcards"}
+                questions={flashcards}
+                clearPDF={clearPDF}
+              />
             </motion.div>
           );
-        case 'mcq':
+        case "mcq":
           console.log("🎯 Rendering MCQQuestions component");
           return (
             <motion.div
@@ -529,10 +562,14 @@ export default function ChatWithFiles() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <MCQQuestions title={title ?? "MCQ Questions"} questions={questions} clearPDF={clearPDF} />
+              <MCQQuestions
+                title={title ?? "MCQ Questions"}
+                questions={questions}
+                clearPDF={clearPDF}
+              />
             </motion.div>
           );
-        case 'theory':
+        case "theory":
           console.log("🎯 Rendering TheoryQuestions component");
           return (
             <motion.div
@@ -540,7 +577,11 @@ export default function ChatWithFiles() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <TheoryQuestions title={title ?? "Theory Questions"} questions={questions} clearPDF={clearPDF} />
+              <TheoryQuestions
+                title={title ?? "Theory Questions"}
+                questions={questions}
+                clearPDF={clearPDF}
+              />
             </motion.div>
           );
         default:
@@ -551,23 +592,34 @@ export default function ChatWithFiles() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <Quiz title={title ?? "Quiz"} questions={questions} clearPDF={clearPDF} />
+              <Quiz
+                title={title ?? "Quiz"}
+                questions={questions}
+                clearPDF={clearPDF}
+              />
             </motion.div>
           );
       }
     } catch (error) {
       console.log("🚨 Error rendering component:", error);
       return (
-        <motion.div 
+        <motion.div
           className="min-h-screen flex items-center justify-center"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
           <div className="text-center">
-            <h2 className="text-xl font-bold text-red-600 mb-4">Rendering Error</h2>
-            <p className="text-gray-600 mb-4">There was an error rendering the component.</p>
-            <Button onClick={clearPDF} className="bg-pink-500 hover:bg-pink-600 text-white">
+            <h2 className="text-xl font-bold text-red-600 mb-4">
+              Rendering Error
+            </h2>
+            <p className="text-gray-600 mb-4">
+              There was an error rendering the component.
+            </p>
+            <Button
+              onClick={clearPDF}
+              className="bg-pink-500 hover:bg-pink-600 text-white"
+            >
               Go Back
             </Button>
           </div>
@@ -578,7 +630,7 @@ export default function ChatWithFiles() {
 
   return (
     <motion.div
-      className="min-h-[100dvh] w-full flex justify-center"
+      className="min-h-[100dvh] w-full bg-gradient-to-br from-pink-50/30 to-purple-50/30 dark:from-zinc-950 dark:to-zinc-900"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
@@ -614,7 +666,7 @@ export default function ChatWithFiles() {
             >
               Drag and drop files here
             </motion.div>
-            <motion.div 
+            <motion.div
               className="text-sm dark:text-zinc-400 text-zinc-500"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -625,246 +677,358 @@ export default function ChatWithFiles() {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
-      >
-        <Card className="w-full max-w-md h-full border-3 sm:border sm:h-fit mt-12 border-pink-500 dark:border-pink-600/70">
-          <CardHeader className="text-center space-y-6">
-            <motion.div 
-              className="mx-auto flex items-center justify-center space-x-2 text-muted-foreground"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <motion.div 
-                className="rounded-full bg-pink-100 dark:bg-pink-900/50 p-2"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.2 }}
-              >
-                <FileUp className="h-6 w-6 text-pink-500 dark:text-pink-400" />
-              </motion.div>
-              <Plus className="h-4 w-4" />
-              <motion.div 
-                className="rounded-full bg-primary/10 p-2"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Loader2 className="h-6 w-6" />
-              </motion.div>
-            </motion.div>
-            <motion.div 
-              className="space-y-2"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <CardTitle className="text-2xl font-bold py-5 ">
-                <span className="text-pink-500">Maampee&apos;s </span> <span className="text-2xl px-2"> Ai </span>
-              </CardTitle>
-              <CardDescription className="text-base">
-                This is to help with your studies.
-                Please upload your PDF or PPT to get multiple choice questions.
-              </CardDescription>
-            </motion.div>
-          </CardHeader>
-          <CardContent>
-            <motion.form 
-              onSubmit={handleSubmitWithFiles} 
-              className="space-y-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              <motion.div
-                className="relative flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 transition-colors hover:border-pink-300"
-              
-                transition={{ duration: 0.2 }}
-              >
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  accept="application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
-                  multiple
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  disabled={anyLoading || isExtracting}
-                />
-                <motion.div
-                  animate={isDragging ? { scale: 1.1 } : { scale: 1 }}
-                  transition={{ duration: 0.2 }}
+
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <motion.div
+          className="text-center mb-8"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h1 className="text-4xl font-bold text-pink-600 dark:text-pink-400 mb-2">
+            MAAMPEE
+          </h1>
+          <p className="text-muted-foreground">
+            Easy to use ai study Assistant
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-[calc(100vh-12rem)]">
+          {/* Left Column - Upload & Study Modes */}
+          <motion.div
+            className="space-y-6"
+            initial={{ x: -30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+          >
+            {/* File Upload Section */}
+            <Card className="border-2 border-pink-500/20 dark:border-pink-600/30 shadow-xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl font-semibold text-pink-600 dark:text-pink-400">
+                  Section for file upload and question number selection
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <motion.form
+                  onSubmit={handleSubmitWithFiles}
+                  className="space-y-6"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
                 >
-                  <FileUp className="h-8 w-8 mb-2 text-muted-foreground" />
-                </motion.div>
-                <p className="text-sm text-muted-foreground text-center">
-                  {files.length > 0 ? (
-                    <motion.span 
-                      className="font-medium text-foreground"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      {files.length} file{files.length > 1 ? 's' : ''} selected
-                      {isExtracting && <div className="flex text-pink-500">
-                         <h1>Extracting</h1>
-                         <span className=""><Loader className="h-4 w-4 mx-1 animate-spin" /></span>
-                        </div>}
-                      {extractedText && !isExtracting && <span className="text-green-500"> ✓</span>}
-                    </motion.span>
-                  ) : (
-                    <span>Drop your PDF or PPT files here or click to browse.</span>
-                  )}
-                </p>
-              </motion.div>
-              
-              {/* Display selected files */}
-              <AnimatePresence>
-                {files.length > 0 && (
-                  <motion.div 
-                    className="space-y-2 max-h-32 overflow-y-auto"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {files.map((file, index) => (
-                      <motion.div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-muted rounded-md"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2, delay: index * 0.05 }}
-                      >
-                        <span className="text-sm truncate flex-1 mr-2">
-                          {file.name}
-                        </span>
-                        <motion.div
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFile(index)}
-                            className="h-6 w-6 p-0 hover:bg-destructive/10"
-                            disabled={anyLoading || isExtracting}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </motion.div>
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <ExtractedTextStorage
-              extractedText={extractedText}
-              fileName={files.length > 0 ? files[0].name : ""}
-              onLoadText={handleLoadText}
-              onGenerateQuiz={handleGenerateQuizFromSaved}
-              onGenerateFlashCards={handleGenerateFlashCardsFromSaved}
-              onGenerateMCQ={handleGenerateMCQFromSaved}
-              disabled={anyLoading || isExtracting}
-              isLoadingQuiz={isLoading}
-              isLoadingFlashCards={isLoadingFlashCards}
-              isLoadingMCQ={isLoadingMCQ}
-            />
-
-              {/* Number of Questions Input */}
-              <motion.div
-                className="space-y-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-              >
-                <div className="my-10">
-
-                <Label htmlFor="numberOfQuestions" className="text-sm font-medium m-1">
-                  Number of Questions
-                </Label>
-                <Input
-                  id="numberOfQuestions"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={numberOfQuestions}
-                  onChange={(e) => setNumberOfQuestions(Math.max(1, Math.min(100, parseInt(e.target.value) || 30)))}
-                  className="w-full mt-2"
-                  disabled={anyLoading || isExtracting}
-                  placeholder="30"
-                />
-                </div>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.1 }}
-              >
-                <Button
-                  type="submit"
-                  className="w-full bg-pink-500 hover:bg-pink-600 text-white"
-                  disabled={!extractedText || anyLoading || isExtracting}
-                >
-                  {isLoading ? (
-                    <motion.span 
-                      className="flex items-center space-x-2"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Generating Quiz...</span>
-                    </motion.span>
-                  ) : (
-                    `Generate Quiz`
-                  )}
-                </Button>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.6 }}
-              >
-                <NewButtons 
-                  onFlashCards={handleFlashCards}
-                  onMCQ={handleMCQ}
-                  onTheory={handleTheory}
-                  disabled={!extractedText || anyLoading || isExtracting}
-                  isLoadingFlashCards={isLoadingFlashCards}
-                  isLoadingMCQ={isLoadingMCQ}
-                  isLoadingTheory={isLoadingTheory}
-                />
-                {/* Progress Bar - Only show when generating questions */}
-              <AnimatePresence>
-                {anyLoading && (
+                  {/* File Upload Area */}
                   <motion.div
-                    className="space-y-2"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
+                    className="relative flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 transition-all duration-300 hover:border-pink-300 hover:bg-pink-50/50 dark:hover:bg-pink-900/10"
+                    transition={{ duration: 0.2 }}
                   >
-                    <div className="flex justify-between text-sm text-muted-foreground my-4 mx-2">
-                      <span>Generating questions...</span>
-                      <span>{Math.round(currentProgress)}%</span>
-                    </div>
-                    <Progress value={currentProgress} className="h-2" />
+                    <input
+                      type="file"
+                      onChange={handleFileChange}
+                      accept="application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
+                      multiple
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      disabled={anyLoading || isExtracting}
+                    />
+                    <motion.div
+                      animate={isDragging ? { scale: 1.1 } : { scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-center"
+                    >
+                      <FileUp className="h-12 w-12 mb-4 text-muted-foreground mx-auto" />
+                      <p className="text-base font-medium text-foreground mb-2">
+                        {files.length > 0 ? (
+                          <motion.span
+                            className="text-pink-600 dark:text-pink-400"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            {files.length} file{files.length > 1 ? "s" : ""}{" "}
+                            selected
+                            {isExtracting && (
+                              <div className="flex items-center justify-center mt-2 text-pink-500">
+                                <span>Extracting text</span>
+                                <Loader className="h-4 w-4 ml-2 animate-spin" />
+                              </div>
+                            )}
+                            {extractedText && !isExtracting && (
+                              <span className="text-green-500 block mt-1">
+                                ✓ Ready to generate
+                              </span>
+                            )}
+                          </motion.span>
+                        ) : (
+                          "Drop files here or click to browse"
+                        )}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Supports PDF and PowerPoint files (max 30MB each)
+                      </p>
+                    </motion.div>
                   </motion.div>
-                )}
-              </AnimatePresence>
-              </motion.div>
-            </motion.form>
-          </CardContent>
-          <AnimatePresence>
-            
-          </AnimatePresence>
-        </Card>
-      </motion.div>
+
+                  {/* Selected Files List */}
+                  <AnimatePresence>
+                    {files.length > 0 && (
+                      <motion.div
+                        className="space-y-3 max-h-40 overflow-y-auto"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        {files.map((file, index) => (
+                          <motion.div
+                            key={index}
+                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.2, delay: index * 0.05 }}
+                          >
+                            <span className="text-sm font-medium truncate flex-1 mr-3">
+                              {file.name}
+                            </span>
+                            <motion.div whileTap={{ scale: 0.9 }}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeFile(index)}
+                                className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                disabled={anyLoading || isExtracting}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </motion.div>
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Number of Questions */}
+                  <motion.div
+                    className="space-y-3"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.5 }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <Label
+                        htmlFor="numberOfQuestions"
+                        className="text-sm font-medium"
+                      >
+                        Number of Questions
+                      </Label>
+                      <span className="text-sm font-medium text-pink-600 dark:text-pink-400">
+                        {numberOfQuestions}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <style jsx>{`
+                        .slider {
+                          -webkit-appearance: none;
+                          appearance: none;
+                          height: 8px;
+                          border-radius: 5px;
+                          outline: none;
+                          opacity: 0.7;
+                          transition: opacity 0.2s;
+                        }
+                        .slider:hover {
+                          opacity: 1;
+                        }
+                        .slider::-webkit-slider-thumb {
+                          -webkit-appearance: none;
+                          appearance: none;
+                          width: 20px;
+                          height: 20px;
+                          border-radius: 50%;
+                          background: #ec4899;
+                          cursor: pointer;
+                          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                          transition: all 0.2s ease;
+                        }
+                        .slider::-webkit-slider-thumb:hover {
+                          transform: scale(1.1);
+                          box-shadow: 0 4px 8px rgba(236, 72, 153, 0.3);
+                        }
+                        .slider::-moz-range-thumb {
+                          width: 20px;
+                          height: 20px;
+                          border-radius: 50%;
+                          background: #ec4899;
+                          cursor: pointer;
+                          border: none;
+                          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        }
+                      `}</style>
+                      <input
+                        id="numberOfQuestions"
+                        type="range"
+                        min="1"
+                        max="150"
+                        value={numberOfQuestions}
+                        onChange={(e) =>
+                          setNumberOfQuestions(parseInt(e.target.value))
+                        }
+                        disabled={anyLoading || isExtracting}
+                        className="w-full slider"
+                        style={{
+                          background: `linear-gradient(to right, #ec4899 0%, #ec4899 ${
+                            (numberOfQuestions / 150) * 100
+                          }%, #e5e7eb ${(numberOfQuestions / 150) * 100}%, #e5e7eb 100%)`,
+                        }}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>1</span>
+                        <span>75</span>
+                        <span>150</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.form>
+              </CardContent>
+            </Card>
+
+            {/* Study Modes Section */}
+            <Card className="border-2 border-pink-500/10 dark:border-pink-600/20 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold text-pink-600 dark:text-pink-400">
+                  STUDY MODES
+                </CardTitle>
+                <CardDescription>
+                  Choose how you want to study your materials
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Study Mode Buttons */}
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    onClick={handleMCQ}
+                    className="w-full bg-pink-500 hover:bg-pink-600 text-white h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    disabled={!extractedText || anyLoading || isExtracting}
+                  >
+                    {isLoadingMCQ ? (
+                      <span className="flex items-center space-x-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Generating...</span>
+                      </span>
+                    ) : (
+                      "MCQ"
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleFlashCards}
+                    className="w-full bg-pink-500 hover:bg-pink-600 text-white h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    disabled={!extractedText || anyLoading || isExtracting}
+                  >
+                    {isLoadingFlashCards ? (
+                      <span className="flex items-center space-x-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Generating...</span>
+                      </span>
+                    ) : (
+                      "Flash Cards"
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleQuizGeneration}
+                    className="w-full bg-pink-500 hover:bg-pink-600 text-white h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    disabled={!extractedText || anyLoading || isExtracting}
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center space-x-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Generating...</span>
+                      </span>
+                    ) : (
+                      "Quiz Questions"
+                    )}
+                  </Button>
+                </div>
+
+                {/* Progress Bar */}
+                <AnimatePresence>
+                  {anyLoading && (
+                    <motion.div
+                      className="space-y-3"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>
+                          {isLoading
+                            ? "Generating Quiz"
+                            : isLoadingFlashCards
+                              ? "Generating Flashcards"
+                              : isLoadingMCQ
+                                ? "Generating MCQ"
+                                : isLoadingTheory
+                                  ? "Generating Theory"
+                                  : "Processing"}
+                          ...
+                        </span>
+                        <span>{Math.round(currentProgress)}%</span>
+                      </div>
+                      <Progress value={currentProgress} className="h-2">
+                        <div
+                          className="h-full bg-pink-500 transition-all duration-300"
+                          style={{ width: `${currentProgress}%` }}
+                        />
+                      </Progress>
+                      {currentPartialQuestions.length > 0 && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          Generated {currentPartialQuestions.length} of{" "}
+                          {numberOfQuestions} questions
+                        </p>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Right Column - Text Selection */}
+          <motion.div
+            className="space-y-6"
+            initial={{ x: 30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.7, ease: "easeOut", delay: 0.2 }}
+          >
+            {/* Text Storage */}
+            <Card className="border-2 border-blue-200 dark:border-blue-800 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold text-blue-600 dark:text-blue-400">
+                  TEXT SELECTION
+                </CardTitle>
+                <CardDescription>
+                  Save and manage your extracted content
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ExtractedTextStorage
+                  extractedText={extractedText}
+                  fileName={files.length > 0 ? files[0].name : ""}
+                  onLoadText={handleLoadText}
+                  disabled={anyLoading || isExtracting}
+                  hasUploadedFiles={hasUploadedFiles}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </div>
     </motion.div>
   );
 }
