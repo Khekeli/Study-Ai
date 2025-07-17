@@ -52,12 +52,14 @@ export default function ChatWithFiles() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [theoryData, setTheoryData] = useState<any>(null);
   const [questionType, setQuestionType] = useState<QuestionType>("quiz");
   const [isDragging, setIsDragging] = useState(false);
   const [title, setTitle] = useState<string>();
   const [isGenerating, setIsGenerating] = useState(false);
   const [numberOfQuestions, setNumberOfQuestions] = useState<number>(30);
   const [hasUploadedFiles, setHasUploadedFiles] = useState(false);
+  const [activeStudyTab, setActiveStudyTab] = useState<"obj" | "theory">("obj");
 
   const handleLoadText = (text: string, name: string) => {
     setExtractedText(text);
@@ -216,7 +218,29 @@ export default function ChatWithFiles() {
     isLoading: isLoadingTheory,
   } = experimental_useObject({
     api: "/api/generate-theory",
-    schema: questionsSchema,
+    schema: z.object({
+      questions: z.array(
+        z.object({
+          question: z.string(),
+          answer: z.string(),
+          difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+          questionType: z
+            .enum(["explain", "compare", "analyze", "apply", "evaluate"])
+            .optional(),
+        })
+      ),
+      key_definitions: z.record(z.string()).optional(),
+      recommended_visuals: z.array(z.string()).optional(),
+      study_tips: z.array(z.string()).optional(),
+      common_misconceptions: z
+        .array(
+          z.object({
+            misconception: z.string(),
+            correction: z.string(),
+          })
+        )
+        .optional(),
+    }),
     initialValue: undefined,
     onError: (error) => {
       console.log("Theory generation error:", error);
@@ -225,7 +249,7 @@ export default function ChatWithFiles() {
     },
     onFinish: ({ object }) => {
       console.log("Theory generated - Raw object:", object);
-      setQuestions(object ?? []);
+      setTheoryData(object);
       setQuestionType("theory");
       setIsGenerating(false);
     },
@@ -461,6 +485,7 @@ export default function ChatWithFiles() {
     setExtractedText("");
     setQuestions([]);
     setFlashcards([]);
+    setTheoryData(null);
     setQuestionType("quiz");
     setTitle(undefined);
     setIsGenerating(false);
@@ -516,6 +541,8 @@ export default function ChatWithFiles() {
   console.log("=== COMPONENT STATE DEBUG ===");
   console.log("Questions length:", questions.length);
   console.log("Flashcards length:", flashcards.length);
+  console.log("Theory data:", theoryData);
+  console.log("Theory questions count:", theoryData?.questions?.length || 0);
   console.log("Question type:", questionType);
   console.log("Any loading:", anyLoading);
   console.log("Is generating:", isGenerating);
@@ -527,12 +554,15 @@ export default function ChatWithFiles() {
   );
   console.log(
     "Should render component?",
-    (questions.length > 0 || flashcards.length > 0) && !anyLoading
+    (questions.length > 0 || flashcards.length > 0 || theoryData) && !anyLoading
   );
   console.log("===============================");
 
   // Render the appropriate component when questions are ready
-  if ((questions.length > 0 || flashcards.length > 0) && !anyLoading) {
+  if (
+    (questions.length > 0 || flashcards.length > 0 || theoryData) &&
+    !anyLoading
+  ) {
     console.log("🎯 Rendering component for type:", questionType);
     console.log("🎯 Questions to render:", questions.length);
     console.log("🎯 Flashcards to render:", flashcards.length);
@@ -571,6 +601,7 @@ export default function ChatWithFiles() {
           );
         case "theory":
           console.log("🎯 Rendering TheoryQuestions component");
+          console.log("🎯 Theory data to render:", theoryData);
           return (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -579,7 +610,7 @@ export default function ChatWithFiles() {
             >
               <TheoryQuestions
                 title={title ?? "Theory Questions"}
-                questions={questions}
+                theoryData={theoryData}
                 clearPDF={clearPDF}
               />
             </motion.div>
@@ -936,55 +967,103 @@ export default function ChatWithFiles() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Study Mode Buttons */}
+                {/* Tab Navigation */}
+                <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+                  <button
+                    onClick={() => setActiveStudyTab("obj")}
+                    className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                      activeStudyTab === "obj"
+                        ? "bg-pink-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    Study OBJ
+                  </button>
+                  <button
+                    onClick={() => setActiveStudyTab("theory")}
+                    className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                      activeStudyTab === "theory"
+                        ? "bg-white text-gray-900 border-l border-gray-300 dark:border-gray-600"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 border-l border-gray-300 dark:border-gray-600"
+                    }`}
+                  >
+                    Study Theory
+                  </button>
+                </div>
+
+                {/* Tab Content */}
                 <div className="space-y-3">
-                  <Button
-                    type="button"
-                    onClick={handleMCQ}
-                    className="w-full bg-pink-500 hover:bg-pink-600 text-white h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    disabled={!extractedText || anyLoading || isExtracting}
-                  >
-                    {isLoadingMCQ ? (
-                      <span className="flex items-center space-x-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Generating...</span>
-                      </span>
-                    ) : (
-                      "MCQ"
-                    )}
-                  </Button>
+                  {activeStudyTab === "obj" && (
+                    <>
+                      <Button
+                        type="button"
+                        onClick={handleMCQ}
+                        className="w-full bg-pink-600 hover:bg-pink-700 text-white h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        disabled={!extractedText || anyLoading || isExtracting}
+                      >
+                        {isLoadingMCQ ? (
+                          <span className="flex items-center space-x-2">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Generating...</span>
+                          </span>
+                        ) : (
+                          "MCQ"
+                        )}
+                      </Button>
 
-                  <Button
-                    type="button"
-                    onClick={handleFlashCards}
-                    className="w-full bg-pink-500 hover:bg-pink-600 text-white h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    disabled={!extractedText || anyLoading || isExtracting}
-                  >
-                    {isLoadingFlashCards ? (
-                      <span className="flex items-center space-x-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Generating...</span>
-                      </span>
-                    ) : (
-                      "Flash Cards"
-                    )}
-                  </Button>
+                      <Button
+                        type="button"
+                        onClick={handleQuizGeneration}
+                        className="w-full bg-pink-600 hover:bg-pink-700 text-white h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        disabled={!extractedText || anyLoading || isExtracting}
+                      >
+                        {isLoading ? (
+                          <span className="flex items-center space-x-2">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Generating...</span>
+                          </span>
+                        ) : (
+                          "Practice Quiz"
+                        )}
+                      </Button>
+                    </>
+                  )}
 
-                  <Button
-                    type="button"
-                    onClick={handleQuizGeneration}
-                    className="w-full bg-pink-500 hover:bg-pink-600 text-white h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    disabled={!extractedText || anyLoading || isExtracting}
-                  >
-                    {isLoading ? (
-                      <span className="flex items-center space-x-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Generating...</span>
-                      </span>
-                    ) : (
-                      "Quiz Questions"
-                    )}
-                  </Button>
+                  {activeStudyTab === "theory" && (
+                    <>
+                      <Button
+                        type="button"
+                        onClick={handleTheory}
+                        className="w-full bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        disabled={!extractedText || anyLoading || isExtracting}
+                      >
+                        {isLoadingTheory ? (
+                          <span className="flex items-center space-x-2">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Generating...</span>
+                          </span>
+                        ) : (
+                          "Theory (Active recall)"
+                        )}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        onClick={handleFlashCards}
+                        className="w-full bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 h-14 text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        disabled={!extractedText || anyLoading || isExtracting}
+                      >
+                        {isLoadingFlashCards ? (
+                          <span className="flex items-center space-x-2">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Generating...</span>
+                          </span>
+                        ) : (
+                          "Flash Cards"
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 {/* Progress Bar */}
