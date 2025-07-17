@@ -748,8 +748,17 @@ export default function ChatWithFiles() {
                             selected
                             {isExtracting && (
                               <div className="flex items-center justify-center mt-2 text-pink-500">
-                                <span>Extracting text</span>
-                                <Loader className="h-4 w-4 ml-2 animate-spin" />
+                                <div className="flex flex-col justify-center items-center">
+                                  <div>
+                                    <span className="flex">
+                                      Reading Doc...{" "}
+                                      <Loader className="h-4 w-4 ml-2 animate-spin" />
+                                    </span>
+                                  </div>
+                                  <span className=" text-gray-500 text-sm">
+                                    (Larger files take more time)
+                                  </span>
+                                </div>
                               </div>
                             )}
                             {extractedText && !isExtracting && (
