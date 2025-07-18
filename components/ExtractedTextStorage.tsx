@@ -276,7 +276,7 @@ const ExtractedTextStorage: React.FC<ExtractedTextStorageProps> = ({
                                 <motion.div
                                   className="fixed z-[999999] w-64 max-w-xs p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl pointer-events-none"
                                   style={{
-                                    left: "50%",
+                                    left: "25%",
                                     top: "50%",
                                     transform: "translate(-50%, -50%)",
                                   }}
