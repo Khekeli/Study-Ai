@@ -274,7 +274,7 @@ const ExtractedTextStorage: React.FC<ExtractedTextStorageProps> = ({
                             <AnimatePresence>
                               {hoveredId === savedText.id && (
                                 <motion.div
-                                  className="absolute z-[99999] left-0 top-full mt-2 w-64 max-w-xs p-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
+                                  className="absolute z-[99999] left-0 top-full mt-2 w-64 max-w-xs p-3 bg-white/90 dark:bg-gray-800 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
                                   initial={{ opacity: 0, y: -10 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   exit={{ opacity: 0, y: -10 }}
