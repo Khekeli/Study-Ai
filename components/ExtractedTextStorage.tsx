@@ -152,6 +152,13 @@ const ExtractedTextStorage: React.FC<ExtractedTextStorageProps> = ({
     });
   };
 
+  const getTextPreview = (text: string, maxLength: number = 150) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength).trim() + "...";
+  };
+
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
   return (
     <>
       <style jsx>{`
@@ -251,7 +258,7 @@ const ExtractedTextStorage: React.FC<ExtractedTextStorageProps> = ({
                         {savedTexts.map((savedText) => (
                           <motion.div
                             key={savedText.id}
-                            className={`p-3 border rounded-lg transition-colors ${
+                            className={`relative p-3 border rounded-lg transition-colors ${
                               selectedId === savedText.id
                                 ? "border-blue-500 bg-blue-50 dark:bg-blue-950/50"
                                 : "border-gray-200 dark:border-gray-700 "
@@ -260,7 +267,29 @@ const ExtractedTextStorage: React.FC<ExtractedTextStorageProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.2 }}
                             whileHover={{ scale: 1.01 }}
+                            onMouseEnter={() => setHoveredId(savedText.id)}
+                            onMouseLeave={() => setHoveredId(null)}
                           >
+                            {/* Hover Preview Tooltip */}
+                            <AnimatePresence>
+                              {hoveredId === savedText.id && (
+                                <motion.div
+                                  className="absolute z-50 left-0 top-full mt-2 w-80 max-w-sm p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg"
+                                  initial={{ opacity: 0, y: -10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                    Text Preview:
+                                  </div>
+                                  <div className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
+                                    {getTextPreview(savedText.text)}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2 mb-1">
