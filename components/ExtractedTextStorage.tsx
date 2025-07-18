@@ -152,12 +152,12 @@ const ExtractedTextStorage: React.FC<ExtractedTextStorageProps> = ({
     });
   };
 
-  const getTextPreview = (text: string, maxLength: number = 60) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength).trim() + "...";
+  const getWordCount = (text: string) => {
+    return text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
   };
-
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
     <>
@@ -267,40 +267,16 @@ const ExtractedTextStorage: React.FC<ExtractedTextStorageProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.2 }}
                             whileHover={{ scale: 1.01 }}
-                            onMouseEnter={() => setHoveredId(savedText.id)}
-                            onMouseLeave={() => setHoveredId(null)}
                           >
-                            {/* Hover Preview Tooltip */}
-                            <AnimatePresence>
-                              {hoveredId === savedText.id && (
-                                <motion.div
-                                  className="fixed z-[999999] w-64 max-w-xs p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl pointer-events-none"
-                                  style={{
-                                    left: "25%",
-                                    top: "50%",
-                                    transform: "translate(-50%, -50%)",
-                                  }}
-                                  initial={{ opacity: 0, scale: 0.95 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  exit={{ opacity: 0, scale: 0.95 }}
-                                  transition={{ duration: 0.2 }}
-                                >
-                                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                    Text Preview:
-                                  </div>
-                                  <div className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
-                                    {getTextPreview(savedText.text)}
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2 mb-1">
                                   <h4 className="font-medium text-sm truncate">
                                     {savedText.name}
                                   </h4>
+                                  <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">
+                                    {getWordCount(savedText.text)} words
+                                  </span>
                                   {selectedId === savedText.id &&
                                     !hasUploadedFiles && (
                                       <motion.span
