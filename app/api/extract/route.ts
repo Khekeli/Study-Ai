@@ -1,4 +1,5 @@
 export const runtime = 'nodejs'
+
 import JSZip from "jszip";
 
 // Type definitions
@@ -26,26 +27,15 @@ try {
   mammoth = null;
 }
 
-// Deployment-safe PDF handling - avoid problematic libraries
+// PDF handling with Node.js runtime
 let pdfParse: any = null;
-const isDeployment =
-  process.env.NODE_ENV === "production" ||
-  process.env.VERCEL ||
-  process.env.NETLIFY;
 
-if (!isDeployment) {
-  // Only try to load pdf-parse in development
-  try {
-    pdfParse = require("pdf-parse");
-    console.log("✅ pdf-parse loaded successfully (development)");
-  } catch (error) {
-    console.warn("⚠️ pdf-parse not available:", error);
-    pdfParse = null;
-  }
-} else {
-  console.log(
-    "🚀 Running in deployment - PDF extraction will use fallback method"
-  );
+try {
+  pdfParse = require("pdf-parse");
+  console.log("✅ pdf-parse loaded successfully");
+} catch (error) {
+  console.warn("⚠️ pdf-parse not available:", error);
+  pdfParse = null;
 }
 
 export const config = {
