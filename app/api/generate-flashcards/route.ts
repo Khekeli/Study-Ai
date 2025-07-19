@@ -22,8 +22,7 @@ export async function POST(req: Request) {
     // Create a dynamic schema based on numberOfQuestions
     const dynamicFlashcardsSchema = z
       .array(flashcardSchema)
-      .min(1)
-      .max(numberOfQuestions || 100);
+      .length(numberOfQuestions || 45);
 
     const result = streamObject({
       model: google("gemini-2.5-flash"),

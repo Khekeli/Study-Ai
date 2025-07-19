@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import StudyTimer from "@/components/StudyTimer";
 import { gsap } from "gsap";
 
 interface Flashcard {
@@ -45,6 +46,8 @@ export default function FlashCards({
   );
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [reviewCards, setReviewCards] = useState<Flashcard[]>([]);
+  const [completionTime, setCompletionTime] = useState<number>(0);
+  const [sessionComplete, setSessionComplete] = useState(false);
 
   // GSAP refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -439,6 +442,94 @@ export default function FlashCards({
     ? false
     : referLaterCards.has(currentIndex);
 
+  const handleTimerComplete = (seconds: number) => {
+    setCompletionTime(seconds);
+  };
+
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    }
+    return `${minutes}m ${secs}s`;
+  };
+
+  // Check if session is complete (all cards studied)
+  useEffect(() => {
+    if (studiedCount === currentQuestions.length && studiedCount > 0) {
+      setSessionComplete(true);
+    }
+  }, [studiedCount, currentQuestions.length]);
+
+  // Show completion screen when all cards are studied
+  if (sessionComplete && !isReviewMode) {
+    return (
+      <div className="min-h-screen w-full flex justify-center items-center bg-gradient-to-br from-gray-50 to-white dark:from-zinc-950 dark:to-zinc-900">
+        <div className="max-w-2xl mx-auto px-4">
+          <Card className="border-gray-300 dark:border-gray-700 shadow-xl">
+            <CardHeader className="text-center pb-6">
+              <CardTitle className="text-2xl sm:text-3xl font-bold text-black dark:text-white">
+                🎉 Session Complete!
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 text-center">
+              <div className="space-y-4">
+                <div className="text-lg text-muted-foreground">
+                  You've studied all {currentQuestions.length} flashcards!
+                </div>
+                {completionTime > 0 && (
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="text-lg font-semibold text-green-700 dark:text-green-300">
+                      Time Spent: {formatTime(completionTime)}
+                    </div>
+                  </div>
+                )}
+                {referLaterCards.size > 0 && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <div className="text-amber-700 dark:text-amber-300 font-medium">
+                      {referLaterCards.size} cards marked for review
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {referLaterCards.size > 0 && (
+                  <Button
+                    onClick={handleStartReview}
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Review Marked Cards
+                  </Button>
+                )}
+                <Button
+                  onClick={handleReset}
+                  variant="outline"
+                  className="border-gray-300 dark:border-gray-700"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Study Again
+                </Button>
+                <Button
+                  onClick={clearPDF}
+                  variant="outline"
+                  className="border-gray-300 dark:border-gray-700"
+                >
+                  <Home className="h-4 w-4 mr-2" />
+                  Home
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -462,37 +553,43 @@ export default function FlashCards({
               )}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {!isReviewMode && referLaterCards.size > 0 && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <StudyTimer
+              className="text-gray-600 dark:text-gray-300"
+              onFinalTime={handleTimerComplete}
+            />
+            <div className="flex items-center gap-2">
+              {!isReviewMode && referLaterCards.size > 0 && (
+                <Button
+                  onClick={handleStartReview}
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-200 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-900/20"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Review ({referLaterCards.size})
+                </Button>
+              )}
+              {isReviewMode && (
+                <Button
+                  onClick={handleExitReview}
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-900/20"
+                >
+                  Exit Review
+                </Button>
+              )}
               <Button
-                onClick={handleStartReview}
+                onClick={clearPDF}
                 variant="outline"
                 size="sm"
-                className="border-amber-200 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-900/20"
+                className="border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/20 shrink-0"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Review ({referLaterCards.size})
+                <Home className="h-4 w-4 mr-2" />
+                Home
               </Button>
-            )}
-            {isReviewMode && (
-              <Button
-                onClick={handleExitReview}
-                variant="outline"
-                size="sm"
-                className="border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-900/20"
-              >
-                Exit Review
-              </Button>
-            )}
-            <Button
-              onClick={clearPDF}
-              variant="outline"
-              size="sm"
-              className="border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/20 shrink-0"
-            >
-              <Home className="h-4 w-4 mr-2" />
-              Home
-            </Button>
+            </div>
           </div>
         </div>
 

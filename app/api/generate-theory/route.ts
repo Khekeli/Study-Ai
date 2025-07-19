@@ -5,31 +5,32 @@ import { z } from "zod";
 export const maxDuration = 150;
 
 // Define the schema for active recall study resources
-const activeRecallSchema = z.object({
-  questions: z
-    .array(
-      z.object({
-        question: z.string(),
-        answer: z.string(),
-        difficulty: z.enum(["easy", "medium", "hard"]).optional(),
-        questionType: z
-          .enum(["explain", "compare", "analyze", "apply", "evaluate"])
-          .optional(),
-      })
-    )
-    .min(1),
-  key_definitions: z.record(z.string()).optional(),
-  recommended_visuals: z.array(z.string()).optional(),
-  study_tips: z.array(z.string()).optional(),
-  common_misconceptions: z
-    .array(
-      z.object({
-        misconception: z.string(),
-        correction: z.string(),
-      })
-    )
-    .optional(),
-});
+const createActiveRecallSchema = (numberOfQuestions: number) =>
+  z.object({
+    questions: z
+      .array(
+        z.object({
+          question: z.string(),
+          answer: z.string(),
+          difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+          questionType: z
+            .enum(["explain", "compare", "analyze", "apply", "evaluate"])
+            .optional(),
+        })
+      )
+      .length(numberOfQuestions),
+    key_definitions: z.record(z.string()).optional(),
+    recommended_visuals: z.array(z.string()).optional(),
+    study_tips: z.array(z.string()).optional(),
+    common_misconceptions: z
+      .array(
+        z.object({
+          misconception: z.string(),
+          correction: z.string(),
+        })
+      )
+      .optional(),
+  });
 
 export async function POST(req: Request) {
   try {
@@ -44,6 +45,11 @@ export async function POST(req: Request) {
         }
       );
     }
+
+    // Create dynamic schema based on numberOfQuestions
+    const activeRecallSchema = createActiveRecallSchema(
+      numberOfQuestions || 15
+    );
 
     const result = streamObject({
       model: google("gemini-2.5-flash"),

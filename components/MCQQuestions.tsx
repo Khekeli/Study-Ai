@@ -1,8 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, RotateCcw, Home, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import StudyTimer from "@/components/StudyTimer";
+import { gsap } from "gsap";
+import {
+  CheckCircle,
+  XCircle,
+  RotateCcw,
+  Home,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from "lucide-react";
 
 interface Question {
   question: string;
@@ -17,15 +27,28 @@ interface MCQQuestionsProps {
   clearPDF: () => void;
 }
 
-const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF }) => {
+const MCQQuestions: React.FC<MCQQuestionsProps> = ({
+  title,
+  questions,
+  clearPDF,
+}) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: number }>({});
-  const [showExplanation, setShowExplanation] = useState<{ [key: number]: boolean }>({});
+  const [showExplanation, setShowExplanation] = useState<{
+    [key: number]: boolean;
+  }>({});
   const [isQuizComplete, setIsQuizComplete] = useState(false);
   const [validQuestions, setValidQuestions] = useState<Question[]>([]);
-  const [aiExplanations, setAiExplanations] = useState<{ [key: number]: string }>({});
+  const [aiExplanations, setAiExplanations] = useState<{
+    [key: number]: string;
+  }>({});
   const [loadingExplanation, setLoadingExplanation] = useState(false);
-  const [showAiExplanation, setShowAiExplanation] = useState<{ [key: number]: boolean }>({});
+  const [showAiExplanation, setShowAiExplanation] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [completionTime, setCompletionTime] = useState<number>(0);
+  const [isComponentLoaded, setIsComponentLoaded] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Refs for animations
   const cardRef = useRef<HTMLDivElement>(null);
@@ -33,208 +56,257 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
   const explanationRef = useRef<HTMLDivElement>(null);
   const aiExplanationRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const optionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Simple animation functions to replace GSAP
-  const fadeInUp = (element: HTMLElement | null, delay: number = 0) => {
-    if (!element) return;
-    
-    element.style.opacity = '0';
-    element.style.transform = 'translateY(10px)';
-    element.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-    
-    setTimeout(() => {
-      element.style.opacity = '1';
-      element.style.transform = 'translateY(0)';
-    }, delay);
+  // Clean animation system using CSS classes with better timing
+  const animationClasses = {
+    fadeInUp: "opacity-0 translate-y-4 transition-all duration-500 ease-out",
+    fadeInUpActive: "opacity-100 translate-y-0",
+    fadeIn: "opacity-0 transition-all duration-300 ease-out",
+    fadeInActive: "opacity-100",
+    slideIn: "opacity-0 -translate-y-2 transition-all duration-400 ease-out",
+    slideInActive: "opacity-100 translate-y-0",
+    scaleIn: "opacity-0 scale-95 transition-all duration-300 ease-out",
+    scaleInActive: "opacity-100 scale-100",
   };
 
-  const fadeIn = (element: HTMLElement | null, delay: number = 0) => {
+  // GSAP expand/collapse animation functions
+  const expandElement = (element: HTMLElement) => {
     if (!element) return;
-    
-    element.style.opacity = '0';
-    element.style.transform = 'translateY(5px)';
-    element.style.transition = 'all 0.3s ease-out';
-    
-    setTimeout(() => {
-      element.style.opacity = '1';
-      element.style.transform = 'translateY(0)';
-    }, delay);
+
+    // Set initial collapsed state
+    gsap.set(element, {
+      height: 0,
+      opacity: 0,
+      overflow: "hidden",
+      paddingTop: 0,
+      paddingBottom: 0,
+      marginTop: 0,
+      marginBottom: 0,
+    });
+
+    // Animate to expanded state
+    gsap.to(element, {
+      height: "auto",
+      opacity: 1,
+      paddingTop: "1rem",
+      paddingBottom: "1rem",
+      marginTop: "0.75rem",
+      marginBottom: "0.75rem",
+      duration: 0.4,
+      ease: "power2.out",
+    });
   };
 
-  const scaleIn = (element: HTMLElement | null, delay: number = 0) => {
+  const collapseElement = (element: HTMLElement, onComplete?: () => void) => {
     if (!element) return;
-    
-    element.style.opacity = '0';
-    element.style.transform = 'scale(0.98)';
-    element.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    
-    setTimeout(() => {
-      element.style.opacity = '1';
-      element.style.transform = 'scale(1)';
-    }, delay);
+
+    gsap.to(element, {
+      height: 0,
+      opacity: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      marginTop: 0,
+      marginBottom: 0,
+      duration: 0.3,
+      ease: "power2.in",
+      onComplete: onComplete,
+    });
   };
 
-  // Smooth slide-in animation for AI explanations
-  const slideInDown = (element: HTMLElement | null, delay: number = 0) => {
+  const expandExplanation = (element: HTMLElement) => {
     if (!element) return;
-    
-    // Set initial state
-    element.style.opacity = '0';
-    element.style.transform = 'translateY(-10px)';
-    element.style.maxHeight = '0';
-    element.style.overflow = 'hidden';
-    element.style.paddingTop = '0';
-    element.style.paddingBottom = '0';
-    element.style.marginTop = '0';
-    element.style.marginBottom = '0';
-    element.style.transition = 'all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)';
-    
-    // Force reflow
-    element.offsetHeight;
-    
-    setTimeout(() => {
-      element.style.opacity = '1';
-      element.style.transform = 'translateY(0)';
-      element.style.maxHeight = '2000px';
-      element.style.paddingTop = '1.5rem';
-      element.style.paddingBottom = '1.5rem';
-      element.style.marginTop = '1rem';
-      element.style.marginBottom = '0';
-    }, delay);
+
+    gsap.fromTo(
+      element,
+      {
+        height: 0,
+        opacity: 0,
+        overflow: "hidden",
+      },
+      {
+        height: "auto",
+        opacity: 1,
+        duration: 0.5,
+        ease: "power2.out",
+      }
+    );
+  };
+
+  const expandAIExplanation = (element: HTMLElement) => {
+    if (!element) return;
+
+    gsap.fromTo(
+      element,
+      {
+        height: 0,
+        opacity: 0,
+        overflow: "hidden",
+        paddingTop: 0,
+        paddingBottom: 0,
+      },
+      {
+        height: "auto",
+        opacity: 1,
+        paddingTop: "1.5rem",
+        paddingBottom: "1.5rem",
+        duration: 0.6,
+        ease: "power2.out",
+      }
+    );
   };
 
   // Function to get AI explanation
   const getAiExplanation = async (questionIndex: number) => {
     if (aiExplanations[questionIndex]) {
-      setShowAiExplanation(prev => ({
+      setShowAiExplanation((prev) => ({
         ...prev,
-        [questionIndex]: true
+        [questionIndex]: true,
       }));
       return;
     }
 
     setLoadingExplanation(true);
+
+    // Show loading animation immediately
+    setTimeout(() => {
+      setShowAiExplanation((prev) => ({
+        ...prev,
+        [questionIndex]: true,
+      }));
+    }, 100);
+
     try {
       const question = validQuestions[questionIndex];
       const correctAnswerIndex = question.answer.charCodeAt(0) - 65;
       const correctAnswerText = question.options[correctAnswerIndex];
 
-      const response = await fetch('/api/explain', {
-        method: 'POST',
+      const response = await fetch("/api/explain", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           question: question.question,
           correctAnswer: `${question.answer}. ${correctAnswerText}`,
-          options: question.options
+          options: question.options,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get explanation');
+        throw new Error("Failed to get explanation");
       }
 
       const data = await response.json();
-      setAiExplanations(prev => ({
+      setAiExplanations((prev) => ({
         ...prev,
-        [questionIndex]: data.explanation
+        [questionIndex]: data.explanation,
       }));
-      
-      // Show AI explanation with smooth animation
+
+      // Animate AI explanation after content is loaded
       setTimeout(() => {
-        setShowAiExplanation(prev => ({
-          ...prev,
-          [questionIndex]: true
-        }));
-      }, 100);
+        if (aiExplanationRef.current) {
+          expandAIExplanation(aiExplanationRef.current);
+        }
+      }, 50);
     } catch (error) {
-      console.error('Error getting explanation:', error);
-      setAiExplanations(prev => ({
+      console.error("Error getting explanation:", error);
+      setAiExplanations((prev) => ({
         ...prev,
-        [questionIndex]: 'Sorry, unable to generate explanation at this time.'
+        [questionIndex]: "Sorry, unable to generate explanation at this time.",
       }));
-      setShowAiExplanation(prev => ({
-        ...prev,
-        [questionIndex]: true
-      }));
+
+      // Animate error message
+      setTimeout(() => {
+        if (aiExplanationRef.current) {
+          expandAIExplanation(aiExplanationRef.current);
+        }
+      }, 50);
     } finally {
       setLoadingExplanation(false);
     }
   };
 
+  // Initialize component with proper loading state
+  useEffect(() => {
+    // Ensure DOM is ready before starting animations
+    const timer = setTimeout(() => {
+      setIsComponentLoaded(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Validate and filter questions on component mount
   useEffect(() => {
-    console.log('MCQQuestions received questions:', questions);
-    console.log('Questions length:', questions?.length);
-    
+    console.log("MCQQuestions received questions:", questions);
+    console.log("Questions length:", questions?.length);
+
     if (!questions || !Array.isArray(questions)) {
-      console.error('Invalid questions data received:', questions);
+      console.error("Invalid questions data received:", questions);
       setValidQuestions([]);
       return;
     }
 
     const filtered = questions.filter((q): q is Question => {
-      const isValid = q && 
-        typeof q === 'object' &&
-        typeof q.question === 'string' &&
-        q.question.trim() !== '' &&
+      const isValid =
+        q &&
+        typeof q === "object" &&
+        typeof q.question === "string" &&
+        q.question.trim() !== "" &&
         Array.isArray(q.options) &&
         q.options.length >= 2 &&
-        q.options.every(option => typeof option === 'string' && option.trim() !== '') &&
-        (q.answer === "A" || q.answer === "B" || q.answer === "C" || q.answer === "D");
-      
+        q.options.every(
+          (option) => typeof option === "string" && option.trim() !== ""
+        ) &&
+        (q.answer === "A" ||
+          q.answer === "B" ||
+          q.answer === "C" ||
+          q.answer === "D");
+
       if (!isValid) {
-        console.warn('Invalid question filtered out:', q);
+        console.warn("Invalid question filtered out:", q);
       }
       return isValid;
     });
 
-    console.log('Filtered valid questions:', filtered.length);
+    console.log("Filtered valid questions:", filtered.length);
     setValidQuestions(filtered);
   }, [questions]);
 
-  // Animate on mount
+  // Handle question transitions with proper timing
   useEffect(() => {
-    if (cardRef.current) {
-      fadeInUp(cardRef.current, 50);
+    if (isComponentLoaded && validQuestions.length > 0) {
+      setIsTransitioning(true);
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+      }, 200);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [currentQuestionIndex, isComponentLoaded, validQuestions.length]);
 
-  // Animate when question changes
-  useEffect(() => {
-    if (optionsRef.current && validQuestions.length > 0) {
-      fadeInUp(optionsRef.current, 100);
-    }
-  }, [currentQuestionIndex, validQuestions]);
-
-  // Animate explanation
+  // Animate explanation when it appears
   useEffect(() => {
     if (showExplanation[currentQuestionIndex] && explanationRef.current) {
-      fadeIn(explanationRef.current, 100);
+      // Small delay to ensure element is rendered
+      setTimeout(() => {
+        if (explanationRef.current) {
+          expandExplanation(explanationRef.current);
+        }
+      }, 10);
     }
   }, [showExplanation, currentQuestionIndex]);
-
-  // Animate AI explanation
-  useEffect(() => {
-    if (showAiExplanation[currentQuestionIndex] && aiExplanationRef.current) {
-      slideInDown(aiExplanationRef.current, 100);
-    }
-  }, [showAiExplanation, currentQuestionIndex]);
-
-  // Animate results
-  useEffect(() => {
-    if (isQuizComplete && resultsRef.current) {
-      scaleIn(resultsRef.current, 100);
-    }
-  }, [isQuizComplete]);
 
   // Early return if no valid questions
   if (!validQuestions || validQuestions.length === 0) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-2 sm:p-4">
         <div className="max-w-2xl mx-auto">
-          <Card ref={cardRef} className="border-2 border-pink-500/30 bg-black">
+          <Card
+            ref={cardRef}
+            className={`border-2 border-pink-500/30 bg-black ${
+              animationClasses.fadeInUp
+            } ${isComponentLoaded ? animationClasses.fadeInUpActive : ""}`}
+          >
             <CardHeader className="text-center pb-3 sm:pb-6">
               <CardTitle className="text-xl sm:text-2xl font-bold text-pink-400">
                 No Valid Questions Found
@@ -242,13 +314,13 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
             </CardHeader>
             <CardContent className="space-y-4 sm:space-y-6 text-center p-4 sm:p-6">
               <div className="text-base sm:text-lg text-gray-300">
-                {questions?.length > 0 
+                {questions?.length > 0
                   ? "The generated questions appear to be invalid. Please try generating again."
-                  : "No questions were generated. Please try again."
-                }
+                  : "No questions were generated. Please try again."}
               </div>
               <div className="text-xs sm:text-sm text-gray-500">
-                Debug info: Received {questions?.length || 0} questions, {validQuestions.length} valid
+                Debug info: Received {questions?.length || 0} questions,{" "}
+                {validQuestions.length} valid
               </div>
               <Button
                 onClick={clearPDF}
@@ -271,32 +343,47 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
 
   const handleAnswerSelect = (answerIndex: number) => {
     if (hasAnswered) return;
-    
-    setUserAnswers(prev => ({
+
+    setUserAnswers((prev) => ({
       ...prev,
-      [currentQuestionIndex]: answerIndex
+      [currentQuestionIndex]: answerIndex,
     }));
-    
+
     // Show explanation after answering with delay for animation
     setTimeout(() => {
-      setShowExplanation(prev => ({
+      setShowExplanation((prev) => ({
         ...prev,
-        [currentQuestionIndex]: true
+        [currentQuestionIndex]: true,
       }));
     }, 300);
   };
 
   const nextQuestion = () => {
     if (currentQuestionIndex < validQuestions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      setCurrentQuestionIndex((prev) => prev + 1);
     } else {
       setIsQuizComplete(true);
     }
   };
 
+  const handleTimerComplete = (seconds: number) => {
+    setCompletionTime(seconds);
+  };
+
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    }
+    return `${minutes}m ${secs}s`;
+  };
+
   const prevQuestion = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+      setCurrentQuestionIndex((prev) => prev - 1);
     }
   };
 
@@ -310,14 +397,13 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
   };
 
   const getScore = () => {
-    const correctAnswers = Object.keys(userAnswers).filter(
-      key => {
-        const questionIndex = parseInt(key);
-        if (questionIndex >= validQuestions.length) return false;
-        const correctAnswerIndex = validQuestions[questionIndex].answer.charCodeAt(0) - 65;
-        return userAnswers[questionIndex] === correctAnswerIndex;
-      }
-    ).length;
+    const correctAnswers = Object.keys(userAnswers).filter((key) => {
+      const questionIndex = parseInt(key);
+      if (questionIndex >= validQuestions.length) return false;
+      const correctAnswerIndex =
+        validQuestions[questionIndex].answer.charCodeAt(0) - 65;
+      return userAnswers[questionIndex] === correctAnswerIndex;
+    }).length;
     return { correct: correctAnswers, total: Object.keys(userAnswers).length };
   };
 
@@ -329,52 +415,79 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
   // Format AI explanation into structured sections with markdown support
   const formatAiExplanation = (explanation: string) => {
     if (!explanation) return null;
-    
+
     // Helper function to process markdown formatting
     const processMarkdown = (text: string) => {
       // Convert **bold** to <strong>
-      let processed = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-purple-100">$1</strong>');
+      let processed = text.replace(
+        /\*\*(.*?)\*\*/g,
+        '<strong class="font-bold text-purple-100">$1</strong>'
+      );
       // Convert *italic* to <em>
-      processed = processed.replace(/\*(.*?)\*/g, '<em class="italic text-purple-100">$1</em>');
+      processed = processed.replace(
+        /\*(.*?)\*/g,
+        '<em class="italic text-purple-100">$1</em>'
+      );
       // Convert `code` to <code>
-      processed = processed.replace(/`(.*?)`/g, '<code class="bg-purple-800/50 px-2 py-1 rounded text-purple-100 font-mono text-sm">$1</code>');
-      
+      processed = processed.replace(
+        /`(.*?)`/g,
+        '<code class="bg-purple-800/50 px-2 py-1 rounded text-purple-100 font-mono text-sm">$1</code>'
+      );
+
       return processed;
     };
-    
+
     // Split explanation into logical sections, preserving line breaks
-    const sections = explanation.split('\n\n').filter(section => section.trim());
-    
+    const sections = explanation
+      .split("\n\n")
+      .filter((section) => section.trim());
+
     return (
       <div className="space-y-4">
         {sections.map((section, index) => {
           const trimmedSection = section.trim();
-          
+
           // Check if section contains bullet points (starts with * or -)
-          if (trimmedSection.includes('\n*') || trimmedSection.includes('\n-') || trimmedSection.match(/^\*/)) {
-            const lines = trimmedSection.split('\n').filter(line => line.trim());
+          if (
+            trimmedSection.includes("\n*") ||
+            trimmedSection.includes("\n-") ||
+            trimmedSection.match(/^\*/)
+          ) {
+            const lines = trimmedSection
+              .split("\n")
+              .filter((line) => line.trim());
             return (
               <div key={index} className="space-y-3">
                 {lines.map((line, lineIndex) => {
                   const trimmedLine = line.trim();
-                  if (trimmedLine.startsWith('*') || trimmedLine.startsWith('-')) {
-                    const bulletContent = trimmedLine.replace(/^[*-]\s*/, '');
+                  if (
+                    trimmedLine.startsWith("*") ||
+                    trimmedLine.startsWith("-")
+                  ) {
+                    const bulletContent = trimmedLine.replace(/^[*-]\s*/, "");
                     return (
-                      <div key={lineIndex} className="flex items-start space-x-3">
+                      <div
+                        key={lineIndex}
+                        className="flex items-start space-x-3"
+                      >
                         <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
-                        <div 
+                        <div
                           className="text-purple-200 leading-relaxed flex-1"
-                          dangerouslySetInnerHTML={{ __html: processMarkdown(bulletContent) }}
+                          dangerouslySetInnerHTML={{
+                            __html: processMarkdown(bulletContent),
+                          }}
                         />
                       </div>
                     );
                   } else if (trimmedLine) {
                     // Non-bullet line in bullet section
                     return (
-                      <div 
-                        key={lineIndex} 
+                      <div
+                        key={lineIndex}
                         className="text-purple-200 leading-relaxed font-semibold"
-                        dangerouslySetInnerHTML={{ __html: processMarkdown(trimmedLine) }}
+                        dangerouslySetInnerHTML={{
+                          __html: processMarkdown(trimmedLine),
+                        }}
                       />
                     );
                   }
@@ -383,47 +496,64 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
               </div>
             );
           }
-          
+
           // Check if it's a header-like section (contains colons and is relatively short)
-          if (trimmedSection.includes(':') && trimmedSection.length < 150 && !trimmedSection.includes('\n')) {
-            const [header, ...content] = trimmedSection.split(':');
+          if (
+            trimmedSection.includes(":") &&
+            trimmedSection.length < 150 &&
+            !trimmedSection.includes("\n")
+          ) {
+            const [header, ...content] = trimmedSection.split(":");
             return (
               <div key={index} className="border-l-4 border-purple-500 pl-4">
                 <h5 className="font-semibold text-purple-300 mb-1">
-                  <span dangerouslySetInnerHTML={{ __html: processMarkdown(header.trim()) }} />:
+                  <span
+                    dangerouslySetInnerHTML={{
+                      __html: processMarkdown(header.trim()),
+                    }}
+                  />
+                  :
                 </h5>
                 {content.length > 0 && (
-                  <div 
+                  <div
                     className="text-purple-200 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: processMarkdown(content.join(':').trim()) }}
+                    dangerouslySetInnerHTML={{
+                      __html: processMarkdown(content.join(":").trim()),
+                    }}
                   />
                 )}
               </div>
             );
           }
-          
+
           // Handle multi-line content with potential formatting
-          if (trimmedSection.includes('\n')) {
-            const lines = trimmedSection.split('\n').filter(line => line.trim());
+          if (trimmedSection.includes("\n")) {
+            const lines = trimmedSection
+              .split("\n")
+              .filter((line) => line.trim());
             return (
               <div key={index} className="space-y-2">
                 {lines.map((line, lineIndex) => (
-                  <div 
-                    key={lineIndex} 
+                  <div
+                    key={lineIndex}
                     className="text-purple-200 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: processMarkdown(line.trim()) }}
+                    dangerouslySetInnerHTML={{
+                      __html: processMarkdown(line.trim()),
+                    }}
                   />
                 ))}
               </div>
             );
           }
-          
+
           // Regular single paragraph
           return (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="text-purple-200 leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: processMarkdown(trimmedSection) }}
+              dangerouslySetInnerHTML={{
+                __html: processMarkdown(trimmedSection),
+              }}
             />
           );
         })}
@@ -434,11 +564,16 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
   if (isQuizComplete) {
     const { correct, total } = getScore();
     const percentage = getScorePercentage();
-    
+
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-2 sm:p-4">
         <div className="max-w-2xl mx-auto">
-          <Card ref={resultsRef} className="border-2 border-pink-500/30 bg-black">
+          <Card
+            ref={resultsRef}
+            className={`border-2 border-pink-500/30 bg-black ${
+              animationClasses.scaleIn
+            } ${animationClasses.scaleInActive}`}
+          >
             <CardHeader className="text-center pb-3 sm:pb-6">
               <CardTitle className="text-xl sm:text-2xl font-bold text-pink-400">
                 MCQ Quiz Complete!
@@ -455,8 +590,19 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
                 <div className="text-xs sm:text-sm text-gray-500 mt-2">
                   Total questions available: {validQuestions.length}
                 </div>
+                {completionTime > 0 && (
+                  <div
+                    className={`mt-4 p-3 bg-pink-900/20 rounded-lg border border-pink-500/30 ${
+                      animationClasses.fadeIn
+                    } ${animationClasses.fadeInActive}`}
+                  >
+                    <div className="text-sm text-pink-300 font-medium">
+                      ⏱️ Time Spent: {formatTime(completionTime)}
+                    </div>
+                  </div>
+                )}
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                 <Button
                   onClick={resetQuiz}
@@ -484,52 +630,83 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-2 sm:p-4">
       <div className="max-w-4xl mx-auto w-full">
-        <Card ref={cardRef} className="border-2 border-pink-500/30 bg-black">
+        <Card
+          ref={cardRef}
+          className={`border-2 border-pink-500/30 bg-black ${
+            animationClasses.fadeInUp
+          } ${isComponentLoaded ? animationClasses.fadeInUpActive : ""}`}
+        >
           <CardHeader className="pb-3 sm:pb-6">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4">
               <CardTitle className="text-lg sm:text-xl font-bold text-pink-400 leading-tight">
                 {title}
               </CardTitle>
-              <div className="flex items-center gap-2 sm:gap-4">
-                <Badge variant="secondary" className="bg-pink-900/50 text-pink-300 border-pink-500/30 text-xs sm:text-sm">
-                  {currentQuestionIndex + 1} / {validQuestions.length}
-                </Badge>
-                <div className="text-xs sm:text-sm text-gray-500">
-                  MCQ Questions
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                <StudyTimer
+                  className="text-pink-300"
+                  onFinalTime={handleTimerComplete}
+                />
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <Badge
+                    variant="secondary"
+                    className="bg-pink-900/50 text-pink-300 border-pink-500/30 text-xs sm:text-sm"
+                  >
+                    {currentQuestionIndex + 1} / {validQuestions.length}
+                  </Badge>
+                  <div className="text-xs sm:text-sm text-gray-500">
+                    MCQ Questions
+                  </div>
                 </div>
               </div>
             </div>
           </CardHeader>
-          
+
           <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
             <div className="bg-black rounded-lg p-4 sm:p-6 border border-pink-500/20">
               <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-100 leading-snug">
                 Question {currentQuestionIndex + 1}: {currentQuestion.question}
               </h3>
-              
-              <div ref={optionsRef} className="space-y-2 sm:space-y-3">
+
+              <div
+                ref={optionsRef}
+                className={`space-y-2 sm:space-y-3 ${animationClasses.fadeIn} ${
+                  isComponentLoaded && !isTransitioning
+                    ? animationClasses.fadeInActive
+                    : ""
+                }`}
+              >
                 {currentQuestion.options.map((option, index) => {
-                  const isSelected = userAnswers[currentQuestionIndex] === index;
-                  const correctAnswerIndex = currentQuestion.answer.charCodeAt(0) - 65;
+                  const isSelected =
+                    userAnswers[currentQuestionIndex] === index;
+                  const correctAnswerIndex =
+                    currentQuestion.answer.charCodeAt(0) - 65;
                   const isCorrectAnswer = index === correctAnswerIndex;
-                  
-                  let buttonClass = "w-full p-3 sm:p-4 text-left border-2 rounded-lg transition-all duration-200 ";
-                  
+
+                  let buttonClass =
+                    "w-full p-3 sm:p-4 text-left border-2 rounded-lg transition-all duration-200 ";
+
                   if (!hasAnswered) {
-                    buttonClass += "border-gray-600 bg-black text-gray-200 cursor-pointer";
+                    buttonClass +=
+                      "border-gray-600 bg-black text-gray-200 cursor-pointer";
                   } else if (isSelected && isCorrectAnswer) {
-                    buttonClass += "border-green-500 bg-green-900/30 text-green-300";
+                    buttonClass +=
+                      "border-green-500 bg-green-900/30 text-green-300";
                   } else if (isSelected && !isCorrectAnswer) {
                     buttonClass += "border-red-500 bg-red-900/30 text-red-300";
                   } else if (isCorrectAnswer) {
-                    buttonClass += "border-green-500 bg-green-900/30 text-green-300";
+                    buttonClass +=
+                      "border-green-500 bg-green-900/30 text-green-300";
                   } else {
-                    buttonClass += "border-gray-600 bg-black text-gray-400 opacity-60";
+                    buttonClass +=
+                      "border-gray-600 bg-black text-gray-400 opacity-60";
                   }
-                  
+
                   return (
                     <button
                       key={index}
+                      ref={(el) => {
+                        optionButtonsRef.current[index] = el;
+                      }}
                       onClick={() => handleAnswerSelect(index)}
                       disabled={hasAnswered}
                       className={buttonClass}
@@ -556,41 +733,79 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
                   );
                 })}
               </div>
-              
-              {showExplanation[currentQuestionIndex] && currentQuestion.explanation && (
-                <div ref={explanationRef} className="mt-3 sm:mt-4 p-3 sm:p-4 bg-blue-900/30 rounded-lg border border-blue-500/30">
-                  <h4 className="font-semibold text-blue-300 mb-2 text-sm sm:text-base">
-                    Explanation:
-                  </h4>
-                  <p className="text-blue-200 leading-relaxed text-sm sm:text-base">
-                    {currentQuestion.explanation}
-                  </p>
-                </div>
-              )}
 
-              {showAiExplanation[currentQuestionIndex] && aiExplanations[currentQuestionIndex] && (
-                <div 
-                  ref={aiExplanationRef} 
+              {showExplanation[currentQuestionIndex] &&
+                currentQuestion.explanation && (
+                  <div
+                    ref={explanationRef}
+                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-blue-900/30 rounded-lg border border-blue-500/30"
+                    style={{ height: 0, opacity: 0, overflow: "hidden" }}
+                  >
+                    <h4 className="font-semibold text-blue-300 mb-2 text-sm sm:text-base">
+                      Explanation:
+                    </h4>
+                    <p className="text-blue-200 leading-relaxed text-sm sm:text-base">
+                      {currentQuestion.explanation}
+                    </p>
+                  </div>
+                )}
+
+              {showAiExplanation[currentQuestionIndex] && (
+                <div
+                  ref={aiExplanationRef}
                   className="mt-4 p-4 sm:p-6 bg-gradient-to-br from-purple-900/40 to-indigo-900/40 rounded-lg border border-purple-500/30 backdrop-blur-sm"
+                  style={{
+                    height: 0,
+                    opacity: 0,
+                    overflow: "hidden",
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                  }}
                 >
                   <div className="flex items-center mb-3 sm:mb-4">
                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center mr-2 sm:mr-3">
-                      <span className="text-white font-bold text-xs sm:text-sm">AI</span>
+                      <span className="text-white font-bold text-xs sm:text-sm">
+                        AI
+                      </span>
                     </div>
                     <h4 className="font-semibold text-purple-300 text-sm sm:text-lg">
-                      AI-Generated Explanation
+                      {loadingExplanation
+                        ? "Generating Explanation..."
+                        : "AI-Generated Explanation"}
                     </h4>
                   </div>
                   <div className="pl-8 sm:pl-11 text-sm sm:text-base">
-                    {formatAiExplanation(aiExplanations[currentQuestionIndex])}
+                    {loadingExplanation ? (
+                      <div className="flex items-center space-x-3 py-4">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+                          <div
+                            className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                            style={{ animationDelay: "0.1s" }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                            style={{ animationDelay: "0.2s" }}
+                          ></div>
+                        </div>
+                        <span className="text-purple-200 text-sm">
+                          Please wait while AI generates a detailed
+                          explanation...
+                        </span>
+                      </div>
+                    ) : (
+                      aiExplanations[currentQuestionIndex] &&
+                      formatAiExplanation(aiExplanations[currentQuestionIndex])
+                    )}
                   </div>
                 </div>
               )}
-              
+
               {hasAnswered && (
                 <div className="mt-3 sm:mt-4 p-3 bg-black rounded-lg border border-gray-600/30">
                   <div className="text-xs sm:text-sm text-gray-300">
-                    <strong>Correct Answer:</strong> {currentQuestion.answer} - {currentQuestion.options[correctAnswerIndex]}
+                    <strong>Correct Answer:</strong> {currentQuestion.answer} -{" "}
+                    {currentQuestion.options[correctAnswerIndex]}
                   </div>
                   {isCorrect ? (
                     <div className="text-green-400 font-medium mt-1 text-xs sm:text-sm">
@@ -598,13 +813,16 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
                     </div>
                   ) : (
                     <div className="text-red-400 font-medium mt-1 text-xs sm:text-sm">
-                      ✗ Incorrect. Your answer: {String.fromCharCode(65 + userAnswers[currentQuestionIndex])}
+                      ✗ Incorrect. Your answer:{" "}
+                      {String.fromCharCode(
+                        65 + userAnswers[currentQuestionIndex]
+                      )}
                     </div>
                   )}
                 </div>
               )}
             </div>
-            
+
             <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
               <Button
                 onClick={prevQuestion}
@@ -615,23 +833,25 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
                 <ChevronLeft className="mr-2 h-4 w-4" />
                 Previous
               </Button>
-              
+
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 w-full sm:w-auto">
                 {hasAnswered && (
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 w-full sm:w-auto">
-                    <Button 
+                    <Button
                       onClick={() => getAiExplanation(currentQuestionIndex)}
                       disabled={loadingExplanation}
-                      className='border-pink-500 border-2 bg-black text-pink-500 hover:bg-black w-full sm:w-auto text-sm sm:text-base'
+                      className="border-pink-500 border-2 bg-black text-pink-500 hover:bg-black w-full sm:w-auto text-sm sm:text-base transition-all duration-200 hover:scale-105"
                     >
                       {loadingExplanation ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          <span className="hidden sm:inline">Getting Explanation...</span>
+                          <span className="hidden sm:inline">
+                            Getting Explanation...
+                          </span>
                           <span className="sm:hidden">Loading...</span>
                         </>
                       ) : (
-                        'Explain with more detial'
+                        "Explain with more detial"
                       )}
                     </Button>
                     <Button
@@ -639,10 +859,14 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
                       className="bg-pink-600 hover:bg-pink-700 text-white transition-all duration-300 w-full sm:w-auto text-sm sm:text-base"
                     >
                       <span className="hidden sm:inline">
-                        {currentQuestionIndex === validQuestions.length - 1 ? 'Finish Quiz' : 'Next Question'}
+                        {currentQuestionIndex === validQuestions.length - 1
+                          ? "Finish Quiz"
+                          : "Next Question"}
                       </span>
                       <span className="sm:hidden">
-                        {currentQuestionIndex === validQuestions.length - 1 ? 'Finish' : 'Next'}
+                        {currentQuestionIndex === validQuestions.length - 1
+                          ? "Finish"
+                          : "Next"}
                       </span>
                       <ChevronRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -650,7 +874,7 @@ const MCQQuestions: React.FC<MCQQuestionsProps> = ({ title, questions, clearPDF 
                 )}
               </div>
             </div>
-            
+
             <div className="flex justify-center">
               <Button
                 onClick={clearPDF}

@@ -22,8 +22,7 @@ export async function POST(req: Request) {
     // Create a dynamic schema based on numberOfQuestions
     const dynamicQuestionsSchema = z
       .array(questionSchema)
-      .min(1)
-      .max(numberOfQuestions || 100);
+      .length(numberOfQuestions || 45);
 
     const result = streamObject({
       model: google("gemini-2.5-flash"),
@@ -41,7 +40,7 @@ export async function POST(req: Request) {
             Example format:
             [
               {
-                "question": "What is the main concept discussed?",
+                "question": "What is the main concept discussed?", 
                 "options": ["Option A", "Option B", "Option C", "Option D"],
                 "answer": "A",
                 "explanation": "This is correct because..."

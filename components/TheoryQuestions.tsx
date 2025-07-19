@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import StudyTimer from "@/components/StudyTimer";
 import { Loader2 } from "lucide-react";
 
 interface TheoryQuestion {
@@ -80,6 +81,8 @@ export default function TheoryQuestions({
   const [showReviewOptions, setShowReviewOptions] = useState(false);
   const [reviewQuestions, setReviewQuestions] = useState<number[]>([]);
   const [reviewCurrentIndex, setReviewCurrentIndex] = useState(0);
+  const [completionTime, setCompletionTime] = useState<number>(0);
+  const [sessionComplete, setSessionComplete] = useState(false);
 
   const paperRef = useRef(null);
   const questionSectionRef = useRef(null);
@@ -371,6 +374,21 @@ export default function TheoryQuestions({
     clearPDF();
   };
 
+  const handleTimerComplete = (seconds: number) => {
+    setCompletionTime(seconds);
+  };
+
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    }
+    return `${minutes}m ${secs}s`;
+  };
+
   const nextQuestion = () => {
     if (isReviewMode) {
       // In review mode, navigate through review questions
@@ -630,25 +648,33 @@ export default function TheoryQuestions({
 
         <div className="text-2xl font-bold tracking-wider text-center">
           <span className="block">{title}</span>
-          {isReviewMode && (
-            <Badge variant="destructive" className="mt-2 mr-2">
-              REVIEW MODE
-            </Badge>
-          )}
-          {current?.difficulty && (
-            <Badge
-              variant={
-                current.difficulty === "easy"
-                  ? "secondary"
-                  : current.difficulty === "medium"
-                    ? "default"
-                    : "destructive"
-              }
-              className="mt-2"
-            >
-              {current.difficulty}
-            </Badge>
-          )}
+          <div className="flex items-center justify-center gap-4 mt-4">
+            <StudyTimer
+              className="text-white"
+              onFinalTime={handleTimerComplete}
+            />
+            <div className="flex gap-2">
+              {isReviewMode && (
+                <Badge variant="destructive" className="text-xs">
+                  REVIEW MODE
+                </Badge>
+              )}
+              {current?.difficulty && (
+                <Badge
+                  variant={
+                    current.difficulty === "easy"
+                      ? "secondary"
+                      : current.difficulty === "medium"
+                        ? "default"
+                        : "destructive"
+                  }
+                  className="text-xs"
+                >
+                  {current.difficulty}
+                </Badge>
+              )}
+            </div>
+          </div>
         </div>
 
         <button
@@ -1180,6 +1206,13 @@ export default function TheoryQuestions({
                     {poorPerformanceQuestions.length > 1 ? "s" : ""} that need
                     more practice (2 stars or below).
                   </p>
+                  {completionTime > 0 && (
+                    <div className="bg-blue-900/30 border border-blue-600 rounded p-4 mb-4">
+                      <p className="text-blue-300 text-sm">
+                        ⏱️ Time Spent: {formatTime(completionTime)}
+                      </p>
+                    </div>
+                  )}
                   <div className="bg-yellow-900/30 border border-yellow-600 rounded p-4 mb-6">
                     <p className="text-yellow-300 text-sm">
                       💡 Keep practicing these questions until you master them!
@@ -1210,9 +1243,16 @@ export default function TheoryQuestions({
                   <p className="text-green-300 text-lg mb-4">
                     Excellent work! You&apos;ve mastered all the questions.
                   </p>
-                  <p className="text-gray-300 text-sm">
+                  <p className="text-gray-300 text-sm mb-4">
                     All questions scored 3 stars. Great job!
                   </p>
+                  {completionTime > 0 && (
+                    <div className="bg-green-900/30 border border-green-600 rounded p-4 mb-4">
+                      <p className="text-green-300 text-sm font-medium">
+                        ⏱️ Time Spent: {formatTime(completionTime)}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <button
