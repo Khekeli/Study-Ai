@@ -190,6 +190,16 @@ export default function FlashCards({
     return baseSize;
   };
 
+  const currentQuestions = isReviewMode ? reviewCards : questions;
+  const studiedCount = studiedCards.size;
+
+  // Check if session is complete (all cards studied) - MOVED BEFORE EARLY RETURNS
+  useEffect(() => {
+    if (studiedCount === currentQuestions.length && studiedCount > 0) {
+      setSessionComplete(true);
+    }
+  }, [studiedCount, currentQuestions.length]);
+
   // Early return if no questions
   if (!questions || questions.length === 0) {
     console.log("No questions available");
@@ -208,7 +218,6 @@ export default function FlashCards({
     );
   }
 
-  const currentQuestions = isReviewMode ? reviewCards : questions;
   const currentQuestion = currentQuestions[currentIndex];
 
   // Safety check for currentQuestion
@@ -437,7 +446,6 @@ export default function FlashCards({
     setShowAnswer(false);
   };
 
-  const studiedCount = studiedCards.size;
   const isCurrentCardMarked = isReviewMode
     ? false
     : referLaterCards.has(currentIndex);
@@ -456,13 +464,6 @@ export default function FlashCards({
     }
     return `${minutes}m ${secs}s`;
   };
-
-  // Check if session is complete (all cards studied)
-  useEffect(() => {
-    if (studiedCount === currentQuestions.length && studiedCount > 0) {
-      setSessionComplete(true);
-    }
-  }, [studiedCount, currentQuestions.length]);
 
   // Show completion screen when all cards are studied
   if (sessionComplete && !isReviewMode) {
