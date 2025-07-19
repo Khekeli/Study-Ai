@@ -478,7 +478,7 @@ export default function FlashCards({
             <CardContent className="space-y-6 text-center">
               <div className="space-y-4">
                 <div className="text-lg text-muted-foreground">
-                  You've studied all {currentQuestions.length} flashcards!
+                  You&apos;ve studied all {currentQuestions.length} flashcards!
                 </div>
                 {completionTime > 0 && (
                   <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
