@@ -1,5 +1,4 @@
 import JSZip from "jszip";
-import pdfParse from "pdf-parse";
 
 // Type definitions
 interface FileInput {
@@ -26,8 +25,27 @@ try {
   mammoth = null;
 }
 
-// pdf-parse is already imported at the top
-console.log("✅ pdf-parse loaded successfully");
+// Deployment-safe PDF handling - avoid problematic libraries
+let pdfParse: any = null;
+const isDeployment =
+  process.env.NODE_ENV === "production" ||
+  process.env.VERCEL ||
+  process.env.NETLIFY;
+
+if (!isDeployment) {
+  // Only try to load pdf-parse in development
+  try {
+    pdfParse = require("pdf-parse");
+    console.log("✅ pdf-parse loaded successfully (development)");
+  } catch (error) {
+    console.warn("⚠️ pdf-parse not available:", error);
+    pdfParse = null;
+  }
+} else {
+  console.log(
+    "🚀 Running in deployment - PDF extraction will use fallback method"
+  );
+}
 
 export const config = {
   api: {
