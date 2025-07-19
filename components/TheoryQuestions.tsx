@@ -87,6 +87,13 @@ export default function TheoryQuestions({
   const paperRef = useRef(null);
   const questionSectionRef = useRef(null);
   const answerSectionRef = useRef(null);
+  const headerRef = useRef(null);
+  const answerModeRef = useRef(null);
+  const inputSectionRef = useRef(null);
+  const actionButtonsRef = useRef(null);
+  const comparisonRef = useRef(null);
+  const studyResourcesRef = useRef(null);
+  const reviewModalRef = useRef(null);
   const gsapRef = useRef<any>(null);
 
   // Use the actual theory data passed as props
@@ -98,23 +105,114 @@ export default function TheoryQuestions({
       import("gsap").then(({ gsap }) => {
         gsapRef.current = gsap;
 
-        // Initial animation
-        gsap.fromTo(
+        // Initial page load animation
+        const tl = gsap.timeline();
+
+        // Header animation
+        if (headerRef.current) {
+          tl.fromTo(
+            headerRef.current,
+            { y: -50, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" }
+          );
+        }
+
+        // Paper interface animation
+        tl.fromTo(
           paperRef.current,
-          { scale: 0.8, opacity: 0, rotateX: -10 },
-          { scale: 1, opacity: 1, rotateX: 0, duration: 1, ease: "power2.out" }
+          { scale: 0.95, opacity: 0, y: 30 },
+          { scale: 1, opacity: 1, y: 0, duration: 0.8, ease: "power2.out" },
+          "-=0.3"
         );
 
+        // Question section animation
         if (questionSectionRef.current) {
-          gsap.fromTo(
+          tl.fromTo(
             questionSectionRef.current,
-            { y: 30, opacity: 0 },
-            { y: 0, opacity: 1, duration: 0.8, delay: 0.3, ease: "power2.out" }
+            { y: 20, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" },
+            "-=0.4"
           );
         }
       });
     }
   }, []);
+
+  // Animate sections when they appear/change
+  useEffect(() => {
+    if (gsapRef.current) {
+      // Animate answer mode toggle
+      if (answerModeRef.current) {
+        gsapRef.current.fromTo(
+          answerModeRef.current,
+          { x: -20, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.4, ease: "power2.out" }
+        );
+      }
+
+      // Animate input section
+      if (inputSectionRef.current) {
+        gsapRef.current.fromTo(
+          inputSectionRef.current,
+          { y: 15, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, ease: "power2.out", delay: 0.1 }
+        );
+      }
+
+      // Animate action buttons
+      if (actionButtonsRef.current) {
+        gsapRef.current.fromTo(
+          actionButtonsRef.current,
+          { y: 15, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, ease: "power2.out", delay: 0.2 }
+        );
+      }
+    }
+  }, [answerMode, currentQuestion]);
+
+  // Animate answer section when it appears
+  useEffect(() => {
+    if (showAnswer && gsapRef.current && answerSectionRef.current) {
+      gsapRef.current.fromTo(
+        answerSectionRef.current,
+        { y: 30, opacity: 0, scale: 0.98 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.7, ease: "power2.out" }
+      );
+    }
+  }, [showAnswer]);
+
+  // Animate comparison section when it appears
+  useEffect(() => {
+    if (comparison && gsapRef.current && comparisonRef.current) {
+      gsapRef.current.fromTo(
+        comparisonRef.current,
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6, ease: "power2.out", delay: 0.2 }
+      );
+    }
+  }, [comparison]);
+
+  // Animate study resources when they appear
+  useEffect(() => {
+    if (showExplanation && gsapRef.current && studyResourcesRef.current) {
+      gsapRef.current.fromTo(
+        studyResourcesRef.current,
+        { height: 0, opacity: 0 },
+        { height: "auto", opacity: 1, duration: 0.5, ease: "power2.out" }
+      );
+    }
+  }, [showExplanation]);
+
+  // Animate review modal when it appears
+  useEffect(() => {
+    if (showReviewOptions && gsapRef.current && reviewModalRef.current) {
+      gsapRef.current.fromTo(
+        reviewModalRef.current,
+        { scale: 0.9, opacity: 0, y: 20 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.7)" }
+      );
+    }
+  }, [showReviewOptions]);
 
   const handleAnswerReveal = async () => {
     if (isTransitioning || isValidating) return;
@@ -390,68 +488,107 @@ export default function TheoryQuestions({
   };
 
   const nextQuestion = () => {
-    if (isReviewMode) {
-      // In review mode, navigate through review questions
-      if (reviewCurrentIndex < reviewQuestions.length - 1) {
-        const nextIndex = reviewCurrentIndex + 1;
-        setReviewCurrentIndex(nextIndex);
-        setCurrentQuestion(reviewQuestions[nextIndex]);
-        setUserAnswer("");
-        setShowAnswer(false);
-        setComparison(null);
-        setShowExplanation(false);
-        setIsTransitioning(false);
-
-        if (gsapRef.current && questionSectionRef.current) {
-          gsapRef.current.fromTo(
-            questionSectionRef.current,
-            { x: 50, opacity: 0 },
-            { x: 0, opacity: 1, duration: 0.6, ease: "power2.out" }
-          );
-        }
-      } else {
-        // Finished reviewing all poor performance questions
-        // Filter out questions that now have good performance (3 stars)
-        const stillPoorQuestions = reviewQuestions.filter((questionIndex) =>
-          poorPerformanceQuestions.includes(questionIndex)
-        );
-
-        if (stillPoorQuestions.length > 0) {
-          // Still have questions to review, restart the cycle
-          setReviewQuestions(stillPoorQuestions);
-          setReviewCurrentIndex(0);
-          setCurrentQuestion(stillPoorQuestions[0]);
+    // Add subtle exit animation before transitioning
+    if (gsapRef.current && questionSectionRef.current) {
+      gsapRef.current.to(questionSectionRef.current, {
+        x: -30,
+        opacity: 0,
+        duration: 0.3,
+        ease: "power2.in",
+        onComplete: () => {
+          // Reset states after exit animation
           setUserAnswer("");
           setShowAnswer(false);
           setComparison(null);
           setShowExplanation(false);
           setIsTransitioning(false);
-        } else {
-          // All questions are now performing well, show completion
-          setShowReviewOptions(true);
-        }
-      }
-    } else {
-      // Normal mode navigation
-      if (currentQuestion < questions.length - 1) {
-        setCurrentQuestion(currentQuestion + 1);
-        setUserAnswer("");
-        setShowAnswer(false);
-        setComparison(null);
-        setShowExplanation(false);
-        setIsTransitioning(false);
 
-        if (gsapRef.current && questionSectionRef.current) {
-          gsapRef.current.fromTo(
-            questionSectionRef.current,
-            { x: 50, opacity: 0 },
-            { x: 0, opacity: 1, duration: 0.6, ease: "power2.out" }
+          if (isReviewMode) {
+            // In review mode, navigate through review questions
+            if (reviewCurrentIndex < reviewQuestions.length - 1) {
+              const nextIndex = reviewCurrentIndex + 1;
+              setReviewCurrentIndex(nextIndex);
+              setCurrentQuestion(reviewQuestions[nextIndex]);
+
+              // Animate in new question
+              gsapRef.current.fromTo(
+                questionSectionRef.current,
+                { x: 50, opacity: 0 },
+                { x: 0, opacity: 1, duration: 0.6, ease: "power2.out" }
+              );
+            } else {
+              // Finished reviewing all poor performance questions
+              const stillPoorQuestions = reviewQuestions.filter(
+                (questionIndex) =>
+                  poorPerformanceQuestions.includes(questionIndex)
+              );
+
+              if (stillPoorQuestions.length > 0) {
+                setReviewQuestions(stillPoorQuestions);
+                setReviewCurrentIndex(0);
+                setCurrentQuestion(stillPoorQuestions[0]);
+
+                gsapRef.current.fromTo(
+                  questionSectionRef.current,
+                  { x: 50, opacity: 0 },
+                  { x: 0, opacity: 1, duration: 0.6, ease: "power2.out" }
+                );
+              } else {
+                setShowReviewOptions(true);
+              }
+            }
+          } else {
+            // Normal mode navigation
+            if (currentQuestion < questions.length - 1) {
+              setCurrentQuestion(currentQuestion + 1);
+
+              // Animate in new question
+              gsapRef.current.fromTo(
+                questionSectionRef.current,
+                { x: 50, opacity: 0 },
+                { x: 0, opacity: 1, duration: 0.6, ease: "power2.out" }
+              );
+            } else {
+              // Finished all questions, check if there are poor performance questions
+              if (poorPerformanceQuestions.length > 0) {
+                setShowReviewOptions(true);
+              }
+            }
+          }
+        },
+      });
+    } else {
+      // Fallback without animation
+      setUserAnswer("");
+      setShowAnswer(false);
+      setComparison(null);
+      setShowExplanation(false);
+      setIsTransitioning(false);
+
+      if (isReviewMode) {
+        if (reviewCurrentIndex < reviewQuestions.length - 1) {
+          const nextIndex = reviewCurrentIndex + 1;
+          setReviewCurrentIndex(nextIndex);
+          setCurrentQuestion(reviewQuestions[nextIndex]);
+        } else {
+          const stillPoorQuestions = reviewQuestions.filter((questionIndex) =>
+            poorPerformanceQuestions.includes(questionIndex)
           );
+          if (stillPoorQuestions.length > 0) {
+            setReviewQuestions(stillPoorQuestions);
+            setReviewCurrentIndex(0);
+            setCurrentQuestion(stillPoorQuestions[0]);
+          } else {
+            setShowReviewOptions(true);
+          }
         }
       } else {
-        // Finished all questions, check if there are poor performance questions
-        if (poorPerformanceQuestions.length > 0) {
-          setShowReviewOptions(true);
+        if (currentQuestion < questions.length - 1) {
+          setCurrentQuestion(currentQuestion + 1);
+        } else {
+          if (poorPerformanceQuestions.length > 0) {
+            setShowReviewOptions(true);
+          }
         }
       }
     }
@@ -625,7 +762,10 @@ export default function TheoryQuestions({
   return (
     <div className="min-h-screen bg-black text-white p-8 font-mono flex flex-col justify-center items-center">
       {/* Header */}
-      <div className="w-full max-w-4xl flex justify-between items-center mb-12">
+      <div
+        ref={headerRef}
+        className="w-full max-w-4xl flex justify-between items-center mb-16"
+      >
         <div className="flex items-center space-x-4">
           <Button
             onClick={clearPDF}
@@ -634,7 +774,7 @@ export default function TheoryQuestions({
             className="border-white text-white hover:bg-white hover:text-black"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
+            Home
           </Button>
           <div className="w-12 h-12 border-2 border-white rounded-full flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-white rounded-full animate-pulse"></div>
@@ -740,8 +880,8 @@ export default function TheoryQuestions({
           {!showAnswer && (
             <div ref={questionSectionRef}>
               {/* Question Section */}
-              <div className="mb-8">
-                <div className="mb-6">
+              <div className="mb-10">
+                <div className="mb-8">
                   <h2 className="text-2xl font-bold mb-4 border-b border-gray-600 pb-2">
                     Question {currentQuestion + 1}
                     {isReviewMode && (
@@ -762,7 +902,7 @@ export default function TheoryQuestions({
               </div>
 
               {/* Answer Mode Toggle */}
-              <div className="mb-6">
+              <div ref={answerModeRef} className="mb-8">
                 <div className="flex space-x-4">
                   <button
                     onClick={() => setAnswerMode("text")}
@@ -788,7 +928,7 @@ export default function TheoryQuestions({
               </div>
 
               {/* Answer Input Section */}
-              <div className="mb-8">
+              <div ref={inputSectionRef} className="mb-10">
                 {answerMode === "text" ? (
                   <div className="space-y-4">
                     <textarea
@@ -883,7 +1023,7 @@ export default function TheoryQuestions({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex space-x-4 mb-8">
+              <div ref={actionButtonsRef} className="flex space-x-4 mb-10">
                 <button
                   onClick={handleAnswerReveal}
                   disabled={
@@ -957,7 +1097,10 @@ export default function TheoryQuestions({
               </div>
 
               {comparison && (
-                <div className="bg-gray-900 p-6 rounded border border-gray-700">
+                <div
+                  ref={comparisonRef}
+                  className="bg-gray-900 p-6 rounded border border-gray-700 mt-8"
+                >
                   {/* Stars Rating */}
                   <div className="flex items-center space-x-2 mb-3">
                     <div className="flex space-x-1">
@@ -1075,7 +1218,10 @@ export default function TheoryQuestions({
 
               {/* Detailed Explanation Modal */}
               {showExplanation && (
-                <div className="bg-gray-900 p-6 rounded border border-gray-700 mt-4">
+                <div
+                  ref={studyResourcesRef}
+                  className="bg-gray-900 p-6 rounded border border-gray-700 mt-6"
+                >
                   <h3 className="text-xl font-bold mb-4 text-white">
                     Study Resources
                   </h3>
@@ -1193,7 +1339,10 @@ export default function TheoryQuestions({
       {/* Review Options Modal */}
       {showReviewOptions && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border-2 border-white rounded-lg p-8 max-w-md w-full mx-4">
+          <div
+            ref={reviewModalRef}
+            className="bg-gray-900 border-2 border-white rounded-lg p-8 max-w-md w-full mx-4"
+          >
             <h2 className="text-2xl font-bold text-white mb-6 text-center">
               {isReviewMode ? "Review Complete!" : "Quiz Complete!"}
             </h2>
@@ -1249,7 +1398,7 @@ export default function TheoryQuestions({
                   {completionTime > 0 && (
                     <div className="bg-green-900/30 border border-green-600 rounded p-4 mb-4">
                       <p className="text-green-300 text-sm font-medium">
-                        ⏱️ Time Spent: {formatTime(completionTime)}
+                        Time Spent: {formatTime(completionTime)}
                       </p>
                     </div>
                   )}
